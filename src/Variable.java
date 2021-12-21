@@ -60,6 +60,7 @@ public class Variable {
             }
             //-------------------------------------------------------------cheating
             else {
+                // doesnt work if you uncomment, why ?  ? ? ?? ? ? ? ? ? ? ? ?? ? ? ? ? ? ? ?????
                 /*
                 if(foundPair) {
                     //System.out.println("row, col, n_x, n_y: " + row + ", " + col + ", " + n_x + ", " + n_y);
