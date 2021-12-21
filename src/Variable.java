@@ -1,9 +1,13 @@
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Set;
 
 public class Variable {
     VarState value;
     HashMap<VarState, Boolean> domain;
 
+    //
+    Set<VarState> legalDomain;
 
     int row, col;
 
@@ -12,6 +16,7 @@ public class Variable {
         this.col = col;
         this.domain = domain;
         this.value = VarState.notInit;
+
     }
 
 
@@ -129,6 +134,7 @@ public class Variable {
     }
 
     public String domainToString() {
+
         StringBuilder sb = new StringBuilder();
         if(domain.get(VarState.empty)) sb.append('0');
         else sb.append(' ');
@@ -136,13 +142,36 @@ public class Variable {
         else sb.append(' ');
         if(domain.get(VarState.neg)) sb.append('-');
         else sb.append(' ');
-        return sb.toString();
+
+        if(this.value==VarState.notInit) return sb.toString();
+        else return "|" + this.value.toString() + "|";
+        //return sb.toString();
     }
 }
 
 enum VarState {
-    notInit,
-    empty,
-    pos,
-    neg
+    notInit {
+        @Override
+        public String toString() {
+            return "X";
+        }
+    },
+    empty {
+        @Override
+        public String toString() {
+            return "0";
+        }
+    },
+    pos{
+        @Override
+        public String toString() {
+            return "+";
+        }
+    },
+    neg {
+        @Override
+        public String toString() {
+            return "-";
+        }
+    }
 }

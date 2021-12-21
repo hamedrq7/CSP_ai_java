@@ -2,11 +2,12 @@ import com.sun.source.tree.VariableTree;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.Map;
-import java.util.Scanner;
-import java.util.Set;
+import java.util.*;
 
 public class Main {
+    static int recursion_count_simple_backtracking = 0;
+    static int recursion_count_fc = 0;
+
     public static void main(String[] args) {
         int n = 0, m=0;
         int[] col_pos = new int[0], col_neg = new int[0];
@@ -72,16 +73,26 @@ public class Main {
         }
         System.out.println();*/
 
-        Csp csp = new Csp(n, m, col_pos, col_neg, row_pos, row_neg, board);
+        Csp csp1 = new Csp(n, m, col_pos, col_neg, row_pos, row_neg, board);
+        Csp csp2 = new Csp(n, m, col_pos, col_neg, row_pos, row_neg, board);
+        Csp csp3 = new Csp(n, m, col_pos, col_neg, row_pos, row_neg, board);
         //for (CellPair x : csp.pairs) {
         //    System.out.println(x.x1 + ", " + x.y1 + ", " + x.x2 + ", " + x.y2);
         //}
+
+        System.out.println("start");
         long startTime = System.nanoTime();
-
-        backtrack_solve_inference(csp);
-
+        backtrack_solve_inference(csp1);
         long stopTime = System.nanoTime();
-        System.out.println(stopTime - startTime);
+        System.out.println("FC: " + (stopTime - startTime));
+
+        long startTime2 = System.nanoTime();
+        backtrack_solve(csp2);
+        long stopTime2 = System.nanoTime();
+        System.out.println("non FC: " + (stopTime2 - startTime2));
+
+        System.out.println("#recursions without FC: " + recursion_count_simple_backtracking);
+        System.out.println("#recursions with FC: " + recursion_count_fc);
         //csp.printBoard();
 
     }
@@ -92,6 +103,7 @@ public class Main {
         System.out.println(temp);
     }
     public static boolean recursive_with_inference(Csp csp) {
+        recursion_count_fc++;
         if(csp.isComplete()) {
             System.out.println("assignment is complete");
             csp.printBoard( -1, -1);
@@ -125,22 +137,28 @@ public class Main {
                 //Assign
                 csp.vars[varToAssign.row][varToAssign.col].value = entry.getKey();
                 // Forward Checking for the new assignment (UPDATE DOMAIN FOR UNASSIGNED VARIABLES)
-                ForwardChecking(csp, varToAssign);
+                //      forward checking returns the changes in domains, so we can undo them
+                ArrayList<Pair> oldDomains = ForwardChecking(csp, varToAssign);
 
                 //check if consistent
                 // only expand if its consistent
                 if(csp.vars[varToAssign.row][varToAssign.col].isConsistent(csp)) {
-                    csp.printBoard(varToAssign.row, varToAssign.col);
-                    System.out.println("up consistent");
-                    boolean result = recursive(csp);
+                    //csp.printBoard(varToAssign.row, varToAssign.col);
+                    //System.out.println("up consistent");
+                    boolean result = recursive_with_inference(csp);
                     if(result) return true;
                 }
                 else {
-                    csp.printBoard(varToAssign.row, varToAssign.col);
-                    System.out.println("up in-consistent");
+                    //csp.printBoard(varToAssign.row, varToAssign.col);
+                    //System.out.println("up in-consistent");
                 }
 
                 //UNDO FORWARD CHECKING
+                //UndoForwardChecking(csp, varToAssign);
+                for(Pair p : oldDomains) {
+                    csp.vars[p.var.row][p.var.col].domain = p.domain;
+                }
+
                 //remove from assignment
                 csp.vars[varToAssign.row][varToAssign.col].value = VarState.notInit;
                 //-------- if you assign the pair as well, you have to undo pair assignment too
@@ -151,32 +169,46 @@ public class Main {
         return false;
     }
 
-    public static void ForwardChecking(Csp csp, Variable newAssignedVar) {
-        // 1 easy way (laziest way) is to iterate over all values in domain of all unassigned variable,
-        // check if that value is inconsistent or consistent, if it is inconsistent, delete it from that variable's domain
-        /*
-        for(int i = 0; i < csp.n; i++) {
-            for (int j = 0; j < csp.m; j++) {
-                //un assigned
-                if(csp.vars[i][j].value==VarState.notInit) {
-                    for (Map.Entry<VarState, Boolean> entry : csp.vars[i][j].domain.entrySet()) {
-                        if (csp.vars[i][j].domain.get(entry.getKey())==true) {
-                            //assign
-                            csp.vars[i][j].value = entry.getKey();
-                            if (!csp.vars[i][j].isConsistent(csp)) {
-                                //update domain
-                                csp.vars[i][j].domain.replace(entry.getKey(), true, false);
-                            }
-                            //undo the assignment
-                            csp.vars[i][j].value = VarState.notInit;
+    public static void UndoForwardChecking(Csp csp, Variable newAssignedVar) {
+        //UNDO-------------------------------pairVar value consistency:
+        Variable pairVar = csp.getPair(newAssignedVar);
+
+        if(newAssignedVar.value==VarState.pos) {
+            pairVar.domain.replace(VarState.pos, false, true);
+            pairVar.domain.replace(VarState.empty, false, true);
+        }
+        else if(newAssignedVar.value==VarState.neg) {
+            pairVar.domain.replace(VarState.neg, false, true);
+            pairVar.domain.replace(VarState.empty, false, true);
+        }
+
+        //UNDO-----------------------------pole consistency (up, down, right and left)
+        for(int x = -1; x <= 1; x++) {
+            for(int y = -1; y <= 1; y++) {
+                if((x==0 && y==0) || x*y!=0)  continue;
+                if(newAssignedVar.row+x < csp.n && newAssignedVar.row+x >= 0
+                        && newAssignedVar.col+y < csp.m && newAssignedVar.col+y >= 0) {
+
+                    int i = newAssignedVar.row+x;
+                    int j = newAssignedVar.col+y;
+
+                    //update domain
+                    if(csp.vars[i][j].value==VarState.notInit) {
+                        if(newAssignedVar.value==VarState.pos) {
+                            //delete pos from i j's domain
+                            csp.vars[i][j].domain.replace(VarState.pos, false, true);
+                        }
+                        else if(newAssignedVar.value==VarState.neg) {
+                            csp.vars[i][j].domain.replace(VarState.neg, false, true);
                         }
                     }
                 }
-
             }
         }
-        csp.printDomains(varToAssign.row, varToAssign.col);
-        */
+
+    }
+    public static ArrayList<Pair> ForwardChecking(Csp csp, Variable newAssignedVar) {
+        ArrayList<Pair> oldDomains = new ArrayList<>();
 
         //--> update domain of every unassigned variable that is in constraint with "newAssignedVar"
 
@@ -192,8 +224,12 @@ public class Main {
         //      all vars in its row
         //*******************************************************
 
+
         //------------------------------------pairVar value consistency:
         Variable pairVar = csp.getPair(newAssignedVar);
+
+        oldDomains.add(new Pair(pairVar, (HashMap<VarState, Boolean>) pairVar.domain.clone()));
+
         //if it is unassigned:
         if(pairVar.value==VarState.notInit) {
             for (Map.Entry<VarState, Boolean> entry : pairVar.domain.entrySet()) {
@@ -219,8 +255,14 @@ public class Main {
 
                     int i = newAssignedVar.row+x;
                     int j = newAssignedVar.col+y;
+
                     //update domain
                     if(csp.vars[i][j].value==VarState.notInit) {
+
+                        boolean alreadyAdded = false;
+                        for(Pair p : oldDomains) if(p.var.row==i && p.var.col==j) alreadyAdded = true;
+                        if(!alreadyAdded) oldDomains.add(new Pair(csp.vars[i][j], (HashMap<VarState, Boolean>) csp.vars[i][j].domain.clone()));
+
                         if(newAssignedVar.value==VarState.pos) {
                             //delete pos from i j's domain
                             if(csp.vars[i][j].domain.get(VarState.pos)==true) csp.vars[i][j].domain.replace(VarState.pos, true, false);
@@ -233,7 +275,13 @@ public class Main {
             }
         }
 
-        csp.printDomains(newAssignedVar.row, newAssignedVar.col);
+        //for(Pair p : oldDomains) {
+        //    System.out.println(p);
+        //}
+
+        //csp.printDomains(newAssignedVar.row, newAssignedVar.col);
+
+        return oldDomains;
     }
 
     public static void backtrack_solve(Csp csp) {
@@ -242,6 +290,7 @@ public class Main {
     }
 
     public static boolean recursive(Csp csp) {
+        recursion_count_simple_backtracking++;
         //csp.printBoard(-1, -1);
         if(csp.isComplete()) {
             System.out.println("assignment is complete");
