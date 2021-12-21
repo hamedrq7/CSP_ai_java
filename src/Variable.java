@@ -14,7 +14,9 @@ public class Variable {
         this.value = VarState.notInit;
     }
 
+
     public boolean isConsistent(Csp csp) {
+
         // this function is written based on the structure of problem
         // (based in constraints of the given problem)
 
@@ -24,62 +26,47 @@ public class Variable {
         }
 
         //----------------------------------------------- pairing constraint
-        for(CellPair x : csp.pairs) {
-            boolean foundPair = false;
-            VarState pairState = null;
-
-            //---
-            int n_x = 0, n_y = 0;
-
-            if( (x.x1 == row && x.y1 == col) ) {
-                //x2, y2 is neighbour
-                n_x = x.x2; n_y = x.y2;
-                pairState = csp.vars[x.x2][x.y2].value;
-                foundPair = true;
-            }
-            else if  ( (x.x2 == row && x.y2 == col) ) {
-                //x1, y1 is neighbour
-                n_x = x.x1; n_y = x.y1;
-                pairState = csp.vars[x.x1][x.y1].value;
-                foundPair = true;
-            }
-
-            if(pairState != VarState.notInit) {
-                if (foundPair) {
-
-                    if (csp.vars[row][col].value == VarState.empty) {
-                        if (pairState != VarState.empty) return false;
-                    } else if (csp.vars[row][col].value == VarState.pos) {
-                        if (pairState != VarState.neg) return false;
-                    } else if (csp.vars[row][col].value == VarState.neg) {
-                        if (pairState != VarState.pos) return false;
-                    }
-
-                    break;
-                }
-            }
-            //-------------------------------------------------------------cheating
-            else {
-                // doesnt work if you uncomment, why ?  ? ? ?? ? ? ? ? ? ? ? ?? ? ? ? ? ? ? ?????
-                /*
-                if(foundPair) {
-                    //System.out.println("row, col, n_x, n_y: " + row + ", " + col + ", " + n_x + ", " + n_y);
-                    if (csp.vars[row][col].value == VarState.empty) {
-                        csp.vars[n_x][n_y].value = VarState.empty;
-                    } else if (csp.vars[row][col].value == VarState.pos) {
-                        csp.vars[n_x][n_y].value = VarState.neg;
-                    } else if (csp.vars[row][col].value == VarState.neg) {
-                        csp.vars[n_x][n_y].value = VarState.pos;
-                    }
-                }
-                break;
-                */
-            }
-
-        }
+        boolean pairCon = isPairConsistent(csp);
 
 
         //----------------------------------------------- همنامی و غیر همنامی
+        boolean poleCon = isPoleConsistent(csp);
+
+        //-----------------------------checking col_pos/neg and row_pos/neg
+        boolean rowColCon = isRowColConsistent(csp);
+        return (pairCon && poleCon && rowColCon);
+    }
+
+    public boolean isPairConsistent(Csp csp) {
+        Variable pair = csp.getPair(this);
+        if(pair.value != VarState.notInit) {
+            if (this.value == VarState.empty) {
+                if (pair.value != VarState.empty) return false;
+            } else if (this.value == VarState.pos) {
+                if (pair.value != VarState.neg) return false;
+            } else if (this.value == VarState.neg) {
+                if (pair.value != VarState.pos) return false;
+            }
+        }
+        else {
+            // pair is not initialized
+
+            //------this part is for when you want to assign the pair as well
+            /*
+            //System.out.println("row, col, n_x, n_y: " + row + ", " + col + ", " + n_x + ", " + n_y);
+            if (this.value == VarState.empty) {
+                pair.value = VarState.empty;
+            } else if (this.value == VarState.pos) {
+                pair.value = VarState.neg;
+            } else if (this.value == VarState.neg) {
+                pair.value = VarState.pos;
+            }
+            */
+        }
+        return true;
+    }
+
+    public boolean isPoleConsistent(Csp csp) {
         for(int x = -1; x <= 1; x++) {
             for(int y = -1; y <= 1; y++) {
                 if((x==0 && y==0) || x*y!=0)  continue;
@@ -90,8 +77,10 @@ public class Variable {
                 }
             }
         }
+        return true;
+    }
 
-        //-----------------------------checking col_pos/neg and row_pos/neg
+    public boolean isRowColConsistent(Csp csp) {
 
         // return false scenarios:
         //      if all vars in the col/row are initialized and col/row pos/neg constraints are not satisfied
@@ -139,6 +128,16 @@ public class Variable {
         return true;
     }
 
+    public String domainToString() {
+        StringBuilder sb = new StringBuilder();
+        if(domain.get(VarState.empty)) sb.append('0');
+        else sb.append(' ');
+        if(domain.get(VarState.pos)) sb.append('+');
+        else sb.append(' ');
+        if(domain.get(VarState.neg)) sb.append('-');
+        else sb.append(' ');
+        return sb.toString();
+    }
 }
 
 enum VarState {

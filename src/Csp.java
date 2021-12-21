@@ -79,6 +79,23 @@ public class Csp {
         return true;
     }
 
+    public Variable getPair(Variable var) {
+        for(CellPair x : this.pairs) {
+
+            if( (x.x1 == var.row && x.y1 == var.col) ) {
+                //x2, y2 is neighbour
+                return this.vars[x.x2][x.y2];
+            }
+            else if  ( (x.x2 == var.row && x.y2 == var.col) ) {
+                //x1, y1 is neighbour
+                return this.vars[x.x1][x.y1];
+            }
+        }
+
+        System.out.println("Did not found pair for Variable " + var.row +", "+ var.col);
+        return null;
+    }
+
     public void printBoard(int x, int y) {
         System.out.println("-------------------");
         for(int i = 0; i < n; i++) {
@@ -114,4 +131,34 @@ public class Csp {
         System.out.println("-------------------");
     }
 
+    public void printDomains(int x, int y) {
+        System.out.println("-----Domains-----");
+        for(int i = 0; i < n; i++) {
+            for(int j = 0; j < m; j++) {
+                if(i== x && j == y) {
+                    System.out.print(" ( ");
+                    if(this.vars[i][j].value == VarState.empty) {
+                        System.out.print(" 0 ");
+
+                    }
+                    else if(this.vars[i][j].value == VarState.pos) {
+                        System.out.print(" + ");
+
+                    }
+                    else if(this.vars[i][j].value == VarState.neg) {
+                        System.out.print(" - ");
+
+                    }
+                    System.out.print(" ) ");
+                }
+                else {
+                    System.out.print("   ");
+                    System.out.print(vars[i][j].domainToString());
+                    System.out.print("   ");
+                }
+            }
+            System.out.println();
+        }
+        System.out.println("-----Domain-----");
+    }
 }
