@@ -1,10 +1,11 @@
 import java.util.HashMap;
+import java.util.HashSet;
 
 public class Pair {
     Variable var;
-    HashMap<VarState, Boolean> domain;
+    HashSet<VarState> domain;
 
-    public Pair(Variable var, HashMap<VarState, Boolean> domain) {
+    public Pair(Variable var, HashSet<VarState> domain) {
         this.var = var;
         this.domain = domain;
     }

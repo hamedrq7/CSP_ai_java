@@ -1,5 +1,7 @@
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 //this class is written based on structure of problem
 class CellPair {
@@ -29,13 +31,15 @@ public class Csp {
         this.row_neg = row_neg;
 
         this.vars = new Variable[n][m];
+
         //build vars
         for(int i = 0; i < n; i++) {
             for(int j = 0; j < m; j++) {
-                HashMap<VarState, Boolean> initialDomain = new HashMap<>();
-                initialDomain.put(VarState.empty, true);
-                initialDomain.put(VarState.neg, true);
-                initialDomain.put(VarState.pos, true);
+                HashSet<VarState> initialDomain = new HashSet<>();
+
+                initialDomain.add(VarState.empty);
+                initialDomain.add(VarState.neg);
+                initialDomain.add(VarState.pos);
 
                 vars[i][j] = new Variable(i, j, initialDomain);
             }
@@ -43,29 +47,24 @@ public class Csp {
 
         //build pairs
         for(int i = 0; i < n; i++) {
-            for(int j = 0; j < m; j++) {
-                //
+            for (int j = 0; j < m; j++) {
                 boolean found = false;
-                for(int k = 0; k < n; k++) {
-                    for(int l = 0; l < m; l++) {
-                        if(i==k && l==j) continue;
-                        if(board[i][j] == board[k][l]) {
+                for (int k = 0; k < n; k++) {
+                    for (int l = 0; l < m; l++) {
+                        if (i == k && l == j) continue;
+                        if (board[i][j] == board[k][l]) {
                             found = true;
                             // produces double the size of actual cell pair array
                             pairs.add(new CellPair(i, j, k, l));
                         }
                     }
                 }
-                if(!found) {
+                if (!found) {
                     System.out.println("didnt found pair! wrong input");
                     System.exit(3);
                 }
             }
         }
-
-
-
-
     }
 
     public boolean isComplete() {

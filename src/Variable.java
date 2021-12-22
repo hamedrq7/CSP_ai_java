@@ -1,27 +1,24 @@
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Set;
 
 public class Variable {
     VarState value;
-    HashMap<VarState, Boolean> domain;
+    HashSet<VarState> domain;
 
     //
-    Set<VarState> legalDomain;
-
     int row, col;
 
-    public Variable(int row, int col, HashMap<VarState, Boolean> domain) {
+    public Variable(int row, int col, HashSet<VarState> domain) {
         this.row = row;
         this.col = col;
         this.domain = domain;
         this.value = VarState.notInit;
-
     }
 
 
     public boolean isConsistent(Csp csp) {
-
         // this function is written based on the structure of problem
         // (based in constraints of the given problem)
 
@@ -32,7 +29,6 @@ public class Variable {
 
         //----------------------------------------------- pairing constraint
         boolean pairCon = isPairConsistent(csp);
-
 
         //----------------------------------------------- همنامی و غیر همنامی
         boolean poleCon = isPoleConsistent(csp);
@@ -136,11 +132,11 @@ public class Variable {
     public String domainToString() {
 
         StringBuilder sb = new StringBuilder();
-        if(domain.get(VarState.empty)) sb.append('0');
+        if(domain.contains(VarState.empty)) sb.append('0');
         else sb.append(' ');
-        if(domain.get(VarState.pos)) sb.append('+');
+        if(domain.contains(VarState.pos)) sb.append('+');
         else sb.append(' ');
-        if(domain.get(VarState.neg)) sb.append('-');
+        if(domain.contains(VarState.neg)) sb.append('-');
         else sb.append(' ');
 
         if(this.value==VarState.notInit) return sb.toString();
