@@ -81,19 +81,20 @@ public class Main {
         //    System.out.println(x.x1 + ", " + x.y1 + ", " + x.x2 + ", " + x.y2);
         //}
 
+
+        long startTime2 = System.nanoTime();
+        backtrack_solve(csp2);
+        long stopTime2 = System.nanoTime();
+        System.out.println("non FC: " + (stopTime2 - startTime2));
+
         System.out.println("start");
         long startTime = System.nanoTime();
         backtrack_FC(csp1);
         long stopTime = System.nanoTime();
         System.out.println("FC: " + (stopTime - startTime));
 
-        long startTime2 = System.nanoTime();
-        //backtrack_solve(csp2);
-        long stopTime2 = System.nanoTime();
-        System.out.println("non FC: " + (stopTime2 - startTime2));
-
         long startTime3 = System.nanoTime();
-        //backtrack_FC_MRV_LCV(csp3);
+        backtrack_FC_MRV_LCV(csp3);
         long stopTime3 = System.nanoTime();
         System.out.println("FC MRV LCV: " + (stopTime3 - startTime3));
 
@@ -195,6 +196,58 @@ public class Main {
     public static void backtrack_FC_MRV_LCV (Csp csp){
         System.out.println(recursive_FC_MRV_LCV(csp));
     }
+
+    // returns list of legal values sorted by LCV ( ONLY CONSISTENT ONES )
+    public static ArrayList<VarState> LCV(Csp csp, Variable assignedVar) {
+        HashMap<VarState, Integer> flexMap = new HashMap<>();
+        ArrayList<VarState> sortedDomain = new ArrayList<>();
+
+        for(VarState val : assignedVar.domain) {
+            //assign
+            int domainSum = 0;
+            csp.vars[assignedVar.row][assignedVar.col].value = val;
+
+            ArrayList<Pair> oldDomains = ForwardChecking(csp, assignedVar);
+            for(int i = 0; i < csp.n; i++) {
+                for(int j = 0; j < csp.m; j++) {
+                    if(csp.vars[i][j].value == VarState.notInit) {
+                        domainSum += csp.vars[i][j].domain.size();
+                    }
+                }
+            }
+            //UNDO FORWARD CHECKING
+            //UndoForwardChecking(csp, varToAssign);
+            for(Pair p : oldDomains) {
+                csp.vars[p.var.row][p.var.col].domain = p.domain;
+            }
+
+            flexMap.put(val, domainSum);
+            sortedDomain.add(val);
+        }
+
+
+        sortedDomain.sort(new Comparator<VarState>() {
+            @Override
+            public int compare(VarState o1, VarState o2) {
+                if(flexMap.get(o1) > flexMap.get(o2)) return -1;
+                else if(flexMap.get(o1) < flexMap.get(o2)) return 1;
+                else return 0;
+            }
+        });
+
+        if(sortedDomain.size()==3 &&
+                (flexMap.get(VarState.neg).intValue() != flexMap.get(VarState.pos).intValue())
+                &&
+                (flexMap.get(VarState.neg).intValue() != (flexMap.get(VarState.empty).intValue()))
+                &&
+                (flexMap.get(VarState.empty).intValue() != (flexMap.get(VarState.pos)).intValue())
+                ){
+            System.out.println(flexMap);
+            System.out.println(sortedDomain);
+
+        }
+        return sortedDomain;
+    }
     public static boolean recursive_FC_MRV_LCV(Csp csp) {
         recursion_count_fc_mrv_lcv++;
         if(csp.isComplete()) {
@@ -224,27 +277,45 @@ public class Main {
         //System.out.println("Selected variable based on MRV: " + varToAssign.row + ", "+ varToAssign.col);
 
         //ADD -> sort(Choose value) based on LCS
-        //right now its index based
-        for(VarState val : varToAssign.domain) {
+        ArrayList<VarState> sortedLCV = LCV(csp, varToAssign);
+        for(VarState val : sortedLCV) {
             //Assign
             csp.vars[varToAssign.row][varToAssign.col].value = val;
 
             // Forward Checking for the new assignment (UPDATE DOMAIN FOR UNASSIGNED VARIABLES)
             //      forward checking returns the changes in domains, so we can undo them
             ArrayList<Pair> oldDomains = ForwardChecking(csp, varToAssign);
-            for(int i = 0; i < csp.n; i++) {
-                for(int j = 0; j < csp.m; j++) {
-                    if(csp.vars[i][j].domain.isEmpty()) return false;
-                }
-            }
 
             //check if consistent
             // only expand if its consistent
             if(csp.vars[varToAssign.row][varToAssign.col].isConsistent(csp)) {
                 //csp.printBoard(varToAssign.row, varToAssign.col);
                 //System.out.println("up consistent");
-                boolean result = recursive_FC_MRV_LCV(csp);
-                if(result) return true;
+
+                // if assignment is consistent, and forward checking detected an
+                // empty domain for an unassigned variable, we need to skip this value in for loop
+                // (we cant return false, because returning false means there is no ANY value for this
+                // variable that can be consistent. but we did forward checking after assigning a value
+                // to this variable, it only means that this VALUE of this variable is inconsistent, so
+                // we have to skip this value, not this variable
+                // for skipping this value, just do not expand the search any longer (dont call recursive)
+                boolean fc_detected_failure = false;
+                for(int i = 0; i < csp.n; i++) {
+                    for(int j = 0; j < csp.m; j++) {
+                        if(csp.vars[i][j].value == VarState.notInit) {
+                            if(csp.vars[i][j].domain.isEmpty()) {
+                                //System.out.println("STOPPED BY FC ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+                                //csp.printDomains(varToAssign.row, varToAssign.col);
+                                fc_detected_failure = true;
+                            }
+                        }
+                    }
+                }
+
+                if (!fc_detected_failure) {
+                    boolean result = recursive_FC_MRV_LCV(csp);
+                    if(result) return true;
+                }
             }
             else {
                 //csp.printBoard(varToAssign.row, varToAssign.col);
@@ -311,8 +382,8 @@ public class Main {
             //check if consistent
             // only expand if its consistent
             if(csp.vars[varToAssign.row][varToAssign.col].isConsistent(csp)) {
-                csp.printBoard(varToAssign.row, varToAssign.col);
-                System.out.println("up consistent");
+                //csp.printBoard(varToAssign.row, varToAssign.col);
+                //System.out.println("up consistent");
 
                 // if assignment is consistent, and forward checking detected an
                 // empty domain for an unassigned variable, we need to skip this value in for loop
