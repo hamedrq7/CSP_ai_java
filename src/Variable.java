@@ -1,16 +1,13 @@
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 public class Variable {
     VarState value;
-    HashSet<VarState> domain;
+    TreeSet<VarState> domain;
 
     //
     int row, col;
 
-    public Variable(int row, int col, HashSet<VarState> domain) {
+    public Variable(int row, int col, TreeSet<VarState> domain) {
         this.row = row;
         this.col = col;
         this.domain = domain;

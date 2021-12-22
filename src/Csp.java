@@ -1,7 +1,4 @@
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 //this class is written based on structure of problem
 class CellPair {
@@ -35,7 +32,7 @@ public class Csp {
         //build vars
         for(int i = 0; i < n; i++) {
             for(int j = 0; j < m; j++) {
-                HashSet<VarState> initialDomain = new HashSet<>();
+                TreeSet<VarState> initialDomain = new TreeSet<VarState>();
 
                 initialDomain.add(VarState.empty);
                 initialDomain.add(VarState.neg);

@@ -1,11 +1,12 @@
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.TreeSet;
 
 public class Pair {
     Variable var;
-    HashSet<VarState> domain;
+    TreeSet<VarState> domain;
 
-    public Pair(Variable var, HashSet<VarState> domain) {
+    public Pair(Variable var, TreeSet<VarState> domain) {
         this.var = var;
         this.domain = domain;
     }
