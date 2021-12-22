@@ -9,14 +9,18 @@ public class Main {
     static int recursion_count_fc = 0;
     static int recursion_count_fc_mrv_lcv = 0;
 
+    static int bfc = 0;
+    static int fc = 0;
+
     public static void main(String[] args) {
         int n = 0, m=0;
         int[] col_pos = new int[0], col_neg = new int[0];
         int[] row_pos = new int[0], row_neg = new int[0];
         int[][] board = new int[0][];
-        
+
+        String testFileName = "tests\\test2.txt";
         try {
-            File myObj = new File("tests\\test1.txt");
+            File myObj = new File(testFileName);
             //System.out.println(myObj.exists());
             Scanner scanner = new Scanner(myObj);
 
@@ -89,12 +93,12 @@ public class Main {
 
         System.out.println("start");
         long startTime = System.nanoTime();
-        backtrack_FC(csp1);
+        //backtrack_FC(csp1);
         long stopTime = System.nanoTime();
         System.out.println("FC: " + (stopTime - startTime));
 
         long startTime3 = System.nanoTime();
-        //backtrack_FC_MRV_LCV(csp3);
+        backtrack_FC_MRV_LCV(csp3);
         long stopTime3 = System.nanoTime();
         System.out.println("FC MRV LCV: " + (stopTime3 - startTime3));
 
@@ -102,6 +106,8 @@ public class Main {
         System.out.println("#recursions with FC: " + recursion_count_fc);
         System.out.println("#recursions with FC MRV LCV: " + recursion_count_fc_mrv_lcv);
 
+        System.out.println("fc: "+ fc);
+        System.out.println("bfc: " + bfc);
         //csp.printBoard();
 
     }
@@ -260,7 +266,7 @@ public class Main {
         //    System.out.println(p);
         //}
 
-        csp.printDomains(newAssignedVar.row, newAssignedVar.col);
+        //csp.printDomains(newAssignedVar.row, newAssignedVar.col);
 
 
         for(int i = 0; i < csp.n; i++) {
@@ -346,13 +352,13 @@ public class Main {
         //    System.out.println(p);
         //}
 
-        csp.printDomains(newAssignedVar.row, newAssignedVar.col);
+        //csp.printDomains(newAssignedVar.row, newAssignedVar.col);
 
 
         for(int i = 0; i < csp.n; i++) {
             for(int j = 0; j < csp.m; j++) {
                 if(csp.vars[i][j].domain.isEmpty()) {
-                    System.out.println("||||||||||||||||||||||||||||||||");
+                    //System.out.println("||||||||||||||||||||||||||||||||");
                     //csp.printDomains(newAssignedVar.row, newAssignedVar.col);
                 }
             }
@@ -409,8 +415,8 @@ public class Main {
                 &&
                 (flexMap.get(VarState.empty).intValue() != (flexMap.get(VarState.pos)).intValue())
                 ){
-            System.out.println(flexMap);
-            System.out.println(sortedDomain);
+            //System.out.println(flexMap);
+            //System.out.println(sortedDomain);
 
         }
         return sortedDomain;
@@ -451,7 +457,8 @@ public class Main {
 
             // Forward Checking for the new assignment (UPDATE DOMAIN FOR UNASSIGNED VARIABLES)
             //      forward checking returns the changes in domains, so we can undo them
-            ArrayList<Pair> oldDomains = ForwardChecking(csp, varToAssign);
+            //ArrayList<Pair> oldDomains = ForwardChecking(csp, varToAssign);
+            ArrayList<Pair> oldDomains = BinaryForwardChecking(csp, varToAssign);
 
             //check if consistent
             // only expand if its consistent
@@ -478,7 +485,7 @@ public class Main {
                         }
                     }
                 }
-
+                //csp.printDomains(varToAssign.row, varToAssign.col);
                 if (!fc_detected_failure) {
                     boolean result = recursive_FC_MRV_LCV(csp);
                     if(result) return true;
@@ -504,8 +511,6 @@ public class Main {
 
         return false;
     }
-
-
 
     public static void backtrack_FC(Csp csp) {
         boolean temp = recursive_FC(csp);
@@ -543,7 +548,8 @@ public class Main {
 
             // Forward Checking for the new assignment (UPDATE DOMAIN FOR UNASSIGNED VARIABLES)
             //      forward checking returns the changes in domains, so we can undo them
-            ArrayList<Pair> oldDomains = ForwardChecking(csp, varToAssign);
+            ArrayList<Pair> oldDomains = BinaryForwardChecking(csp, varToAssign);
+            //ArrayList<Pair> oldDomains = ForwardChecking(csp, varToAssign);
 
 
             //check if consistent
@@ -567,6 +573,8 @@ public class Main {
                                 //System.out.println("STOPPED BY FC ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
                                 //csp.printDomains(varToAssign.row, varToAssign.col);
                                 fc_detected_failure = true;
+                                bfc++;
+                                fc++;
                             }
                         }
                     }
