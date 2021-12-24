@@ -14,6 +14,18 @@ public class Variable {
         this.value = VarState.notInit;
     }
 
+    public ArrayList<Variable> getNeighbours(Csp csp) {
+        ArrayList<Variable> result = new ArrayList<>();
+        for(int x = -1; x <= 1; x++) {
+            for(int y = -1; y <= 1; y++) {
+                if((x==0 && y==0) || x*y!=0)  continue;
+                if(row+x < csp.n && row+x >= 0 && col+y < csp.m && col+y >= 0) {
+                    result.add(csp.vars[row+x][col+y]);
+                }
+            }
+        }
+        return result;
+    }
 
     public boolean isConsistent(Csp csp) {
         // this function is written based on the structure of problem
@@ -139,6 +151,13 @@ public class Variable {
         if(this.value==VarState.notInit) return sb.toString();
         else return "|" + this.value.toString() + "|";
         //return sb.toString();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        Variable v = (Variable) obj;
+        if(this.row == v.row && this.col == v.col) return true;
+        else return false;
     }
 }
 

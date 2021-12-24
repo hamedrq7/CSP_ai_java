@@ -1,3 +1,4 @@
+import com.sun.jdi.Value;
 import com.sun.source.tree.VariableTree;
 
 import java.io.File;
@@ -13,6 +14,28 @@ public class Main {
     static int fc = 0;
 
     public static void main(String[] args) {
+
+        /*int nn = 10, mm = 10;
+        System.out.println(nn + " " + mm);
+        for(int i = 0; i < 2; i++) {
+            for(int j = 0; j < mm; j++) {
+                System.out.print(mm/2 + " ");
+            }
+            System.out.println();
+        }
+        for(int i = 0; i < 2; i++) {
+            for(int j = 0; j < nn; j++) {
+                System.out.print(nn/2 + " ");
+            }
+            System.out.println();
+        }
+        for(int i = 0; i < nn; i++) {
+            for(int j = 0; j < mm; j++) {
+                System.out.print(j+1+(mm*(i/2)) + " ");
+            }
+            System.out.println();
+        }*/
+
         int n = 0, m=0;
         int[] col_pos = new int[0], col_neg = new int[0];
         int[] row_pos = new int[0], row_neg = new int[0];
@@ -366,6 +389,99 @@ public class Main {
         return oldDomains;
     }
 
+    public static void backtrack_arc_consistency(Csp csp) {
+        boolean temp = recursive_arc(csp);
+    }
+
+    public static boolean recursive_arc(Csp csp) {
+        //do GRAPH ARC-CONSISTENCY
+
+
+        return false;
+    }
+
+
+    // ONLY BINARY CONSTRAINTS (did not transformed general constraints into binary yet)
+    public static boolean ac3(Csp csp) {
+        Queue<CellPair> arcs = (Queue<CellPair>) new LinkedHashSet<CellPair>();
+        //initialize arcs
+        for(int i = 0; i < csp.n; i++) {
+            for(int j = 0; j < csp.m; j++) {
+                ArrayList<Variable> neighbours = csp.vars[i][j].getNeighbours(csp);
+                for(Variable y : neighbours) {
+                    /// if y is already assigned, then we do not care
+                    if(y.value != VarState.notInit) {
+                        CellPair newArc = new CellPair(csp.vars[i][j], y);
+                        if(!arcs.contains(newArc))
+                            arcs.add(newArc);
+                    }
+                }
+            }
+        }
+
+        while(!arcs.isEmpty()) {
+            CellPair poppedArc = arcs.poll();
+            arcs.remove();
+            if(revise(csp, poppedArc.x, poppedArc.y)) {
+                if(poppedArc.x.domain.isEmpty()) return false;
+                for(Variable neighbour : poppedArc.x.getNeighbours(csp)) {
+                    if(neighbour.value != VarState.notInit) {
+                        if(!neighbour.equals(poppedArc.y)) {
+                            ////// as we mentioned before, in AC-3 each
+                            // binary constraints becomes 2 arcs, one in
+                            // each direction
+
+                            //in this part you have to add Xk, Xi (Xk is neighbour)
+                            // why? because revise function returned true, so
+                            // domain of Xi has changed , therefore you need to recheck
+                            // arc consistency of arc Xk, Xi (NOT Xi and Xk)
+                            boolean isNotAlreadyAdded = arcs.add(new CellPair(neighbour, poppedArc.x));
+                            if(!isNotAlreadyAdded) System.out.println("+-+");
+                        }
+                    }
+                }
+            }
+
+        }
+
+        return true;
+    }
+
+    public static boolean revise(Csp csp, Variable x, Variable y) {
+        if(y.value != VarState.notInit) return false;
+        boolean revised = false;
+        for(VarState val : x.domain) {
+            boolean foundConsistentValue = false;
+            ////// ONLY CHECK CONSTRAINTS BETWEEN X AND Y (not all the neighbours)
+            // meaning that :
+            // if X, Y are pairs -> check pairConsistency between them
+            // if X, Y are neighbour poles -> check poleConsistency between them
+
+            //assign val to x
+            x.value = val;
+            //iterate over y domain to see of there is any value in y's domain that
+            // satisfies the binary constraint between X, Y
+            for(VarState y_val : y.domain) {
+                //**** we assume that X is binary consistent up until here
+                // since we assumed
+                // its consistent with respect to other variables (other than y)
+                // checking ALL x's binary constraints, just means checking
+                // binary constrains between X and Y
+
+                ///////// if that assumption changes (you changed the code)
+                // you need to make this part so that it only checks bConstraints
+                // between X and Y
+
+                //assign y to y_val
+                y.value = y_val;
+
+                //**** NOTE THAT WE DONT check consistency of Y's new value across
+                // other variables
+                if(x.)
+            }
+        }
+        return revised;
+    }
     public static void backtrack_FC_MRV_LCV (Csp csp){
         System.out.println(recursive_FC_MRV_LCV(csp));
     }
@@ -646,7 +762,6 @@ public class Main {
 
     }
     */
-
 
     public static void backtrack_solve(Csp csp) {
         boolean temp = recursive(csp);

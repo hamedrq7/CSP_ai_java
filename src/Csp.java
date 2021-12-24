@@ -2,6 +2,11 @@ import java.util.*;
 
 //this class is written based on structure of problem
 class CellPair {
+    Variable x, y;
+    public CellPair(Variable x, Variable y) {
+        this.x = x;
+        this.y = y;
+    }
     int x1, y1;
     int x2, y2;
     public CellPair(int x1, int y1, int x2, int y2) {
@@ -9,6 +14,32 @@ class CellPair {
         this.y1 = y1;
         this.x2 = x2;
         this.y2 = y2;
+    }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int row = x.row;
+        int col = x.col;
+        int result = 1;
+        result = prime * result + col;
+        result = prime * result + row;
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        CellPair p = (CellPair) obj;
+        // Xi, Xj equals Xi, Xj
+        if(this.x.equals(p.x) && this.y.equals(p.y)) {
+            return true;
+        }
+
+        //************
+        // in AC-3, every binary constraint becomes 2 arcs, one in each direction
+        // so Xi, Xj NOT equals Xj, Xi
+
+        else return false;
     }
 }
 public class Csp {
