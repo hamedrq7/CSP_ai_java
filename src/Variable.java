@@ -90,8 +90,8 @@ public class Variable {
         return true;
     }
 
+    // you can make this function to check for stronger inconsistencies
     public boolean isRowColConsistent(Csp csp) {
-
         // return false scenarios:
         //      if all vars in the col/row are initialized and col/row pos/neg constraints are not satisfied
         //      if current number of pos/neg exceeds the constraints on row/col

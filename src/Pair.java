@@ -12,6 +12,13 @@ public class Pair {
     }
 
     @Override
+    public boolean equals(Object obj) {
+        Pair p = (Pair) obj;
+        if(p.var.row==this.var.row && p.var.col==this.var.col) return true;
+        else return false;
+    }
+
+    @Override
     public String toString() {
         return var.row + ", " + var.col + ": " + var.value + "\t| " + domain;
     }
