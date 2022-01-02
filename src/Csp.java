@@ -129,7 +129,7 @@ public class Csp {
             for(int j = 0; j < m; j++) {
 
                 if(i == x && j == y) System.out.print(" (");
-                else System.out.print("  ");
+                else {System.out.print("  ");}
 
                 if(this.vars[i][j].value == VarState.notInit) {
                     System.out.print("x");

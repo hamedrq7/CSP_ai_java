@@ -9,6 +9,7 @@ public class Main {
     static int recursion_count_simple_backtracking = 0;
     static int recursion_count_fc = 0;
     static int recursion_count_fc_mrv_lcv = 0;
+    static int recursion_count_arc = 0;
 
     static int bfc = 0;
     static int fc = 0;
@@ -41,7 +42,7 @@ public class Main {
         int[] row_pos = new int[0], row_neg = new int[0];
         int[][] board = new int[0][];
 
-        String testFileName = "tests\\test1.txt";
+        String testFileName = "tests\\test2.txt";
         try {
             File myObj = new File(testFileName);
             //System.out.println(myObj.exists());
@@ -77,6 +78,7 @@ public class Main {
         Csp csp1 = new Csp(n, m, col_pos, col_neg, row_pos, row_neg, board);
         Csp csp2 = new Csp(n, m, col_pos, col_neg, row_pos, row_neg, board);
         Csp csp3 = new Csp(n, m, col_pos, col_neg, row_pos, row_neg, board);
+        Csp csp4 = new Csp(n, m, col_pos, col_neg, row_pos, row_neg, board);
         //for (CellPair x : csp.pairs) {
         //    System.out.println(x.x1 + ", " + x.y1 + ", " + x.x2 + ", " + x.y2);
         //}
@@ -89,7 +91,7 @@ public class Main {
 
         System.out.println("start");
         long startTime = System.nanoTime();
-        //backtrack_FC(csp1);
+        backtrack_FC(csp1);
         long stopTime = System.nanoTime();
         System.out.println("FC: " + (stopTime - startTime));
 
@@ -98,9 +100,15 @@ public class Main {
         long stopTime3 = System.nanoTime();
         System.out.println("FC MRV LCV: " + (stopTime3 - startTime3));
 
+        long startTime4 = System.nanoTime();
+        backtrack_arc_consistency(csp4);
+        long stopTime4 = System.nanoTime();
+        System.out.println("arc c: " + (stopTime4 - startTime4));
+
         System.out.println("#recursions without FC: " + recursion_count_simple_backtracking);
         System.out.println("#recursions with FC: " + recursion_count_fc);
         System.out.println("#recursions with FC MRV LCV: " + recursion_count_fc_mrv_lcv);
+        System.out.println("#recursions with arc con: " + recursion_count_arc);
 
         System.out.println("fc: "+ fc);
         System.out.println("bfc: " + bfc);
@@ -673,101 +681,85 @@ public class Main {
     }
 
     public static boolean recursive_arc(Csp csp) {
-        //do GRAPH ARC-CONSISTENCY
+        recursion_count_arc++;
+        ArrayList<Pair> oldDomains = ac3(csp);
+
+        System.out.println("current board:");
+        csp.printBoard(-1, -1);
+        System.out.println("domain after ac3: ");
+        csp.printDomains(-1, -1);
+
         if(csp.isComplete()) {
             System.out.println("assignment is complete");
             csp.printBoard( -1, -1);
             return true;
         }
 
-        //ADD -> select a var based on MRV
-        Variable varToAssign = csp.vars[0][0];
-        boolean firstNotInitializedFound = false;
+        //right now selection is based on index
+        Variable varToAssign = null;
         for(int i = 0; i < csp.n; i++) {
+            boolean stop = false;
             for(int j = 0; j < csp.m; j++) {
                 if(csp.vars[i][j].value == VarState.notInit) {
-                    if(!firstNotInitializedFound) {
-                        varToAssign = csp.vars[i][j];
-                        firstNotInitializedFound = true;
-                    }
-                    else {
-                        if(csp.vars[i][j].domain.size() < varToAssign.domain.size()) {
-                            varToAssign = csp.vars[i][j];
-                        }
-                    }
+                    stop = true;
+                    varToAssign = csp.vars[i][j];
+                    break;
                 }
             }
+            if(stop) break;
         }
-        //System.out.println("Selected variable based on MRV: " + varToAssign.row + ", "+ varToAssign.col);
 
         //ADD -> sort(Choose value) based on LCS
-        ArrayList<VarState> sortedLCV = LCV(csp, varToAssign);
-        for(VarState val : sortedLCV) {
-            //Assign
+
+        for(VarState val : varToAssign.domain) {
+            //assign
             csp.vars[varToAssign.row][varToAssign.col].value = val;
 
-            // Forward Checking for the new assignment (UPDATE DOMAIN FOR UNASSIGNED VARIABLES)
-            //      forward checking returns the changes in domains, so we can undo them
-            //ArrayList<Pair> oldDomains = ForwardChecking(csp, varToAssign);
-            //ArrayList<Pair> oldDomains = BinaryForwardChecking(csp, varToAssign);
-            ArrayList<Pair> oldDomains = abnormalForwardChecking(csp, varToAssign);
-
+            //check if consistent
+            // only expand if its consistent
             if(csp.vars[varToAssign.row][varToAssign.col].isConsistent(csp)) {
                 //csp.printBoard(varToAssign.row, varToAssign.col);
                 //System.out.println("up consistent");
-
-                boolean fc_detected_failure = false;
-                for(int i = 0; i < csp.n; i++) {
-                    for(int j = 0; j < csp.m; j++) {
-                        if(csp.vars[i][j].value == VarState.notInit) {
-                            if(csp.vars[i][j].domain.isEmpty()) {
-                                fc_detected_failure = true;
-                                fc++;
-                            }
-                        }
-                    }
-                }
-                //csp.printDomains(varToAssign.row, varToAssign.col);
-                if (!fc_detected_failure) {
-                    boolean result = recursive_FC_MRV_LCV(csp);
-                    if(result) return true;
-                }
+                boolean result = recursive_arc(csp);
+                if(result) return true;
             }
             else {
                 //csp.printBoard(varToAssign.row, varToAssign.col);
                 //System.out.println("up in-consistent");
             }
 
-            //UNDO FORWARD CHECKING
-            for(Pair p : oldDomains) {
-                csp.vars[p.var.row][p.var.col].domain = p.domain;
-            }
-
             //remove from assignment
             csp.vars[varToAssign.row][varToAssign.col].value = VarState.notInit;
+            //-------- if you assign the pair as well, you have to undo pair assignment too
+            //csp.vars[csp.getPair(varToAssign).row][csp.getPair(varToAssign).col].value = VarState.notInit;
+        }
 
-       }
+        for(Pair p : oldDomains) {
+            csp.vars[p.var.row][p.var.col].domain = p.domain;
+        }
 
         return false;
     }
 
     // ONLY BINARY CONSTRAINTS (did not transformed general constraints into binary yet)
     public static ArrayList<Pair> ac3(Csp csp) {
+
         ArrayList<Pair> oldDomains = new ArrayList<>();
         Queue<CellPair> arcs =  new LinkedList<>();
         //initialize arcs
         for(int i = 0; i < csp.n; i++) {
             for(int j = 0; j < csp.m; j++) {
-                ArrayList<Variable> neighbours = csp.vars[i][j].getNeighbours(csp);
-                for(Variable y : neighbours) {
-                    /// if y is already assigned, then we do not care
-                    if(y.value == VarState.notInit) {
-                        CellPair newArc = new CellPair(csp.vars[i][j], y);
-
-                        if(!arcs.contains(newArc)) {
-                            arcs.add(newArc);
-                            //System.out.println("--: "+newArc.x.row+", "+newArc.x.col+" | "+newArc.y.row+", "+newArc.y.col);
-                        }
+                if(csp.vars[i][j].value==VarState.notInit) {
+                    ArrayList<Variable> neighbours = csp.vars[i][j].getNeighbours(csp);
+                    for(Variable y : neighbours) {
+                        /// if y is already assigned, then we do not care
+                        //if(y.value == VarState.notInit) {
+                            CellPair newArc = new CellPair(csp.vars[i][j], y);
+                            if(!arcs.contains(newArc)) {
+                                arcs.add(newArc);
+                                //System.out.println("arc <("+i+", "+j+"), ("+y.row+", "+y.col+")> added.");
+                            }
+                        //}
                     }
                 }
             }
@@ -777,14 +769,17 @@ public class Main {
             CellPair poppedArc = arcs.poll();
 
             //domain of poppedArc.x gets updated in revise() function
-            ArrayList<Pair> oldDomainsFromRevised = revise(csp, poppedArc.x, poppedArc.y);
-            //System.out.println("returned from revise");
-            for(Pair p : oldDomainsFromRevised) {
+            ArrayList<Pair> oldDomainsFromRevise = revise(csp, poppedArc.x, poppedArc.y);
+
+            //System.out.println("returned from revise (Arc: <("+ poppedArc.x.row+","+poppedArc.x.col+"), "+poppedArc.y.row+","+poppedArc.y.col+")>, domain:");
+            //csp.printDomains(-1, -1);
+
+            for(Pair p : oldDomainsFromRevise) {
                 if(!oldDomains.contains(p)) oldDomains.add(p);
             }
-            if(!oldDomainsFromRevised.isEmpty()) { // equivalent to "if(revise())"
+            if(!oldDomainsFromRevise.isEmpty()) { // equivalent to "if(revise())"
                 if(poppedArc.x.domain.isEmpty()) {
-                    System.out.println("returned before end of ac3");
+                    //System.out.println("returned before end of ac3");
                     return oldDomains;
                 }
                 for(Variable neighbour : poppedArc.x.getNeighbours(csp)) {
@@ -794,40 +789,39 @@ public class Main {
                             // binary constraints becomes 2 arcs, one in
                             // each direction
 
-                            //in this part you have to add Xk, Xi (Xk is neighbour)
+                            // in this part you have to add Xk, Xi (Xk is neighbour)
                             // why? because revise function returned true, so
                             // domain of Xi has changed , therefore you need to recheck
                             // arc consistency of arc <Xk, Xi> (NOT <Xi, Xk>)
                             CellPair newArc = new CellPair(neighbour, poppedArc.x);
                             ArrayList<CellPair> temp = new ArrayList<>();
-                            boolean isAdded = false;
 
+                            /*boolean isAdded = false;
                             while (!arcs.isEmpty()) {
                                 CellPair p = arcs.poll();
                                 if(p.equals(newArc)) isAdded = true;
                             }
-                            for(CellPair p : temp) arcs.add(p);
+                            for(CellPair p : temp) arcs.add(p);*/
 
-                            if(!isAdded) arcs.add(newArc);
-
-                            System.out.println("size: " + arcs.size());
+                            if(!arcs.contains(newArc)) arcs.add(newArc);
                         }
                     }
                 }
             }
         }
-        System.out.println("end of ac3");
         return oldDomains;
     }
+
     //returns true if domain has changed
     public static ArrayList<Pair> revise(Csp csp, Variable x, Variable y) {
-        System.out.println("entering revise <" + x.row+"|"+x.col+", "+y.row+"|"+y.col+">");
+        //System.out.println("x, y in revise : " + x.row+", "+x.col+" | "+y.row+", "+y.col);
         ArrayList<Pair> oldDomains = new ArrayList<>();
-        if(y.value != VarState.notInit) return oldDomains;
+        if(x.value != VarState.notInit) return oldDomains;
 
         boolean revised = false;
         ArrayList<VarState> listToRemove = new ArrayList<>();
         for(VarState x_val : x.domain) {
+            boolean tempBool = false;
             boolean foundConsistentValue = false;
             ////// ONLY CHECK CONSTRAINTS BETWEEN X AND Y (not all the neighbours)
             // meaning that :
@@ -838,45 +832,83 @@ public class Main {
             x.value = x_val;
             //iterate over y domain to see of there is any value in there that
             // satisfies the binary constraint between X, Y
-            for(VarState y_val : y.domain) {
-                //**** we assume that X is binary consistent up until here
-                // since we assumed
-                // its consistent with respect to other variables (other than y)
-                // checking ALL x's binary constraints, just means checking
-                // binary constrains between X and Y
 
-                ///////// if that assumption changes (you changed the code)
-                // you need to make this part so that it only checks bConstraints
-                // between X and Y
+            //System.out.println("checking x value: "+x_val);
 
-                //assign y to y_val
-                y.value = y_val;
-
-                //**** NOTE THAT WE DONT check consistency of Y's new value across
-                // other variables
+            if(y.value!=VarState.notInit) {
                 if (csp.getPair(x).equals(y)) {
-                    foundConsistentValue = x.isPairConsistent(csp);
-                } else foundConsistentValue = true;
+                    if(x.isPairConsistent(csp)) foundConsistentValue = true;
+                    else foundConsistentValue = false;
 
-                foundConsistentValue = (foundConsistentValue && x.isPoleConsistent(csp));
-
-                if (!foundConsistentValue) {
-                    revised = true;
-
-                    boolean alreadyAdded = false;
-                    for(Pair p : oldDomains) if(p.var.row==x.row && p.var.col==x.col) alreadyAdded = true;
-                    if(!alreadyAdded) oldDomains.add(new Pair(x, (TreeSet<VarState>) x.domain.clone()));
-
-                    listToRemove.add(x_val);
+                    if(!x.isPoleConsistent(csp)) {
+                        foundConsistentValue = false;
+                    }
                 }
-                //un assign y
-                y.value = VarState.notInit;
+                else {
+                    if(x.isPoleConsistent(csp)) {
+                        foundConsistentValue = true;
+                    } else {
+                        foundConsistentValue = false;
+                    }
+                }
+            }
+            else {
+                for(VarState y_val : y.domain) {
+                    //**** we assume that X is binary consistent up until here
+                    // since we assumed
+                    // its consistent with respect to other variables (other than y)
+                    // checking ALL x's binary constraints, just means checking
+                    // binary constrains between X and Y
+
+                    ///////// if that assumption changes (you changed the code)
+                    // you need to make this part so that it only checks bConstraints
+                    // between X and Y
+
+                    //assign y to y_val
+                    y.value = y_val;
+
+                    //**** NOTE THAT WE DONT check consistency of Y's new value across
+                    // other variables
+                    if (csp.getPair(x).equals(y)) {
+                        if(x.isPairConsistent(csp)) foundConsistentValue = true;
+                        else foundConsistentValue = false;
+
+                        if(!x.isPoleConsistent(csp)) {
+                            foundConsistentValue = false;
+                        }
+                    }
+                    else {
+                        if(x.isPoleConsistent(csp)) {
+                            foundConsistentValue = true;
+                        } else {
+                            foundConsistentValue = false;
+                        }
+                    }
+
+                    //un assign y
+                    y.value = VarState.notInit;
+
+                    if(foundConsistentValue) break;
+                }
+            }
+
+            if (!foundConsistentValue) {
+                revised = true;
+                tempBool = true;
+
+
+                boolean alreadyAdded = false;
+                for(Pair p : oldDomains) if(p.var.row==x.row && p.var.col==x.col) alreadyAdded = true;
+                if(!alreadyAdded) oldDomains.add(new Pair(x, (TreeSet<VarState>) x.domain.clone()));
+
+                listToRemove.add(x_val);
             }
             //un assign x
             x.value = VarState.notInit;
         }
-        System.out.println("exiting revised, result of new domain... res: " + revised);
-        //csp.printDomains(x.row, x.col);
+
+        x.domain.removeAll(listToRemove);
+
         return oldDomains;
     }
 
@@ -1061,8 +1093,8 @@ public class Main {
 
             // Forward Checking for the new assignment (UPDATE DOMAIN FOR UNASSIGNED VARIABLES)
             //      forward checking returns the changes in domains, so we can undo them
-            //ArrayList<Pair> oldDomains = BinaryForwardChecking(csp, varToAssign);
-            ArrayList<Pair> oldDomains = ForwardChecking(csp, varToAssign);
+            ArrayList<Pair> oldDomains = BinaryForwardChecking(csp, varToAssign);
+            //ArrayList<Pair> oldDomains = ForwardChecking(csp, varToAssign);
             //ArrayList<Pair> oldDomains = abnormalForwardChecking(csp, varToAssign);
 
             //check if consistent
@@ -1123,13 +1155,6 @@ public class Main {
         System.out.println(temp);
     }
     public static boolean recursive(Csp csp) {
-        ArrayList<Pair> oldDomains = ac3(csp);
-        csp.printDomains(-1, -1);
-        for(Pair p : oldDomains) {
-            csp.vars[p.var.row][p.var.col].domain = p.domain;
-        }
-        System.exit(2);
-
         recursion_count_simple_backtracking++;
         //csp.printBoard(-1, -1);
         if(csp.isComplete()) {
