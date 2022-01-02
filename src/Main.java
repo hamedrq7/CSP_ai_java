@@ -684,10 +684,14 @@ public class Main {
         recursion_count_arc++;
         ArrayList<Pair> oldDomains = ac3(csp);
 
+        // un comment to see how ac3 is doing
+
+        /*
         System.out.println("current board:");
         csp.printBoard(-1, -1);
         System.out.println("domain after ac3: ");
         csp.printDomains(-1, -1);
+        */
 
         if(csp.isComplete()) {
             System.out.println("assignment is complete");
@@ -712,20 +716,56 @@ public class Main {
         //ADD -> sort(Choose value) based on LCS
 
         for(VarState val : varToAssign.domain) {
-            //assign
+            //Assign
             csp.vars[varToAssign.row][varToAssign.col].value = val;
+
+            // Forward Checking for the new assignment (UPDATE DOMAIN FOR UNASSIGNED VARIABLES)
+            //      forward checking returns the changes in domains, so we can undo them
+            //ArrayList<Pair> oldDomainsFromFC = BinaryForwardChecking(csp, varToAssign);
+            //ArrayList<Pair> oldDomainsFromFC = ForwardChecking(csp, varToAssign);
+            ArrayList<Pair> oldDomainsFromFC = abnormalForwardChecking(csp, varToAssign);
 
             //check if consistent
             // only expand if its consistent
             if(csp.vars[varToAssign.row][varToAssign.col].isConsistent(csp)) {
                 //csp.printBoard(varToAssign.row, varToAssign.col);
                 //System.out.println("up consistent");
-                boolean result = recursive_arc(csp);
-                if(result) return true;
+
+                // if assignment is consistent, and forward checking detected an
+                // empty domain for an unassigned variable, we need to skip this value in for loop
+                // (we cant return false, because returning false means there is no ANY value for this
+                // variable that can be consistent. but we did forward checking after assigning a value
+                // to this variable, it only means that this VALUE of this variable is inconsistent, so
+                // we have to skip this value, not this variable
+                // for skipping this value, just do not expand the search any longer (dont call recursive)
+                boolean fc_detected_failure = false;
+                for(int i = 0; i < csp.n; i++) {
+                    for(int j = 0; j < csp.m; j++) {
+                        if(csp.vars[i][j].value == VarState.notInit) {
+                            if(csp.vars[i][j].domain.isEmpty()) {
+                                //System.out.println("STOPPED BY FC ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+                                //csp.printDomains(varToAssign.row, varToAssign.col);
+                                fc_detected_failure = true;
+                                bfc++;
+                                fc++;
+                            }
+                        }
+                    }
+                }
+
+                if (!fc_detected_failure) {
+                    boolean result = recursive_arc(csp);
+                    if(result) return true;
+                }
             }
             else {
                 //csp.printBoard(varToAssign.row, varToAssign.col);
                 //System.out.println("up in-consistent");
+            }
+
+            //UNDO FORWARD CHECKING
+            for(Pair p : oldDomainsFromFC) {
+                csp.vars[p.var.row][p.var.col].domain = p.domain;
             }
 
             //remove from assignment
@@ -1093,9 +1133,9 @@ public class Main {
 
             // Forward Checking for the new assignment (UPDATE DOMAIN FOR UNASSIGNED VARIABLES)
             //      forward checking returns the changes in domains, so we can undo them
-            ArrayList<Pair> oldDomains = BinaryForwardChecking(csp, varToAssign);
+            //ArrayList<Pair> oldDomains = BinaryForwardChecking(csp, varToAssign);
             //ArrayList<Pair> oldDomains = ForwardChecking(csp, varToAssign);
-            //ArrayList<Pair> oldDomains = abnormalForwardChecking(csp, varToAssign);
+            ArrayList<Pair> oldDomains = abnormalForwardChecking(csp, varToAssign);
 
             //check if consistent
             // only expand if its consistent
