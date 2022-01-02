@@ -96,7 +96,7 @@ public class Main {
         System.out.println("FC: " + (stopTime - startTime));
 
         long startTime3 = System.nanoTime();
-        //backtrack_FC_MRV_LCV(csp3);
+        backtrack_FC_MRV_LCV(csp3);
         long stopTime3 = System.nanoTime();
         System.out.println("FC MRV LCV: " + (stopTime3 - startTime3));
 
