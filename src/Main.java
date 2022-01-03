@@ -1,6 +1,3 @@
-import com.sun.jdi.Value;
-import com.sun.source.tree.VariableTree;
-
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.*;
@@ -15,34 +12,12 @@ public class Main {
     static int fc = 0;
 
     public static void main(String[] args) {
-
-        /*int nn = 10, mm = 10;
-        System.out.println(nn + " " + mm);
-        for(int i = 0; i < 2; i++) {
-            for(int j = 0; j < mm; j++) {
-                System.out.print(mm/2 + " ");
-            }
-            System.out.println();
-        }
-        for(int i = 0; i < 2; i++) {
-            for(int j = 0; j < nn; j++) {
-                System.out.print(nn/2 + " ");
-            }
-            System.out.println();
-        }
-        for(int i = 0; i < nn; i++) {
-            for(int j = 0; j < mm; j++) {
-                System.out.print(j+1+(mm*(i/2)) + " ");
-            }
-            System.out.println();
-        }*/
-
         int n = 0, m=0;
         int[] col_pos = new int[0], col_neg = new int[0];
         int[] row_pos = new int[0], row_neg = new int[0];
         int[][] board = new int[0][];
 
-        String testFileName = "tests\\test2.txt";
+        String testFileName = "tests/test2.txt";
         try {
             File myObj = new File(testFileName);
             //System.out.println(myObj.exists());
@@ -79,35 +54,30 @@ public class Main {
         Csp csp2 = new Csp(n, m, col_pos, col_neg, row_pos, row_neg, board);
         Csp csp3 = new Csp(n, m, col_pos, col_neg, row_pos, row_neg, board);
         Csp csp4 = new Csp(n, m, col_pos, col_neg, row_pos, row_neg, board);
-        //for (CellPair x : csp.pairs) {
-        //    System.out.println(x.x1 + ", " + x.y1 + ", " + x.x2 + ", " + x.y2);
-        //}
 
+        long startTime1 = System.nanoTime();
+        backtrack_solve(csp1);
+        long stopTime1 = System.nanoTime();
+        System.out.println("dry backtrack: " + (stopTime1 - startTime1)/1000000);
 
         long startTime2 = System.nanoTime();
-        backtrack_solve(csp2);
+        backtrack_FC(csp2);
         long stopTime2 = System.nanoTime();
-        System.out.println("non FC: " + (stopTime2 - startTime2));
-
-        System.out.println("start");
-        long startTime = System.nanoTime();
-        backtrack_FC(csp1);
-        long stopTime = System.nanoTime();
-        System.out.println("FC: " + (stopTime - startTime));
+        System.out.println("backTrack, only forward checking: " + (stopTime2 - startTime2)/1000000);
 
         long startTime3 = System.nanoTime();
         backtrack_FC_MRV_LCV(csp3);
         long stopTime3 = System.nanoTime();
-        System.out.println("FC MRV LCV: " + (stopTime3 - startTime3));
+        System.out.println("forward checking+MRV+LCV: " + (stopTime3 - startTime3)/1000000);
 
         long startTime4 = System.nanoTime();
         backtrack_arc_consistency(csp4);
         long stopTime4 = System.nanoTime();
-        System.out.println("arc c: " + (stopTime4 - startTime4));
+        System.out.println("with arc consistency: " + (stopTime4 - startTime4)/1000000);
 
-        System.out.println("#recursions without FC: " + recursion_count_simple_backtracking);
+        System.out.println("#recursions with: " + recursion_count_simple_backtracking);
         System.out.println("#recursions with FC: " + recursion_count_fc);
-        System.out.println("#recursions with FC MRV LCV: " + recursion_count_fc_mrv_lcv);
+        System.out.println("#recursions in orward checking+MRV+LCV: " + recursion_count_fc_mrv_lcv);
         System.out.println("#recursions with arc con: " + recursion_count_arc);
 
         System.out.println("fc: "+ fc);
@@ -116,565 +86,6 @@ public class Main {
 
     }
 
-    public static ArrayList<Pair> abnormalForwardChecking(Csp csp, Variable newAssignedVar) {
-        ArrayList<Pair> oldDomains = new ArrayList<>();
-
-        //--> update domain of every unassigned variable that is in constraint with "newAssignedVar"
-
-        //question, which variables does the newAssignedVar effect?
-        //      all vars in its up, down, left and right:
-        //          newAssignedVar.value != {up, down, left, right}
-
-        //      the pairVar value:
-        //          value of pairVar should be equal to newAssignedVar.value (reduces domain size to 1)
-
-        //*******************************************************
-        //      all vars in its column
-        //      all vars in its row
-        //*******************************************************
-
-        //------------------------------------pairVar value consistency:
-        Variable pairVar = csp.getPair(newAssignedVar);
-
-        oldDomains.add(new Pair(pairVar, (TreeSet<VarState>) pairVar.domain.clone()));
-
-        //if it is unassigned:
-        if(pairVar.value==VarState.notInit) {
-            ArrayList<VarState> listToRemove = new ArrayList<>();
-            for(VarState var : pairVar.domain) {
-                //assign
-                pairVar.value = var;
-
-                //check pairVar con
-                //// only check pair consistency, because we are checking binary constraint between 2 vars
-                if(!pairVar.isPairConsistent(csp)) {
-                    //pairVar.domain.remove(var);
-                    listToRemove.add(var);
-                }
-                //undo assignment
-                pairVar.value = VarState.notInit;
-            }
-            pairVar.domain.removeAll(listToRemove);
-        }
-
-
-        //------------------------------------pole consistency (up, down, right and left)
-        for(int x = -1; x <= 1; x++) {
-            for(int y = -1; y <= 1; y++) {
-                if((x==0 && y==0) || x*y!=0)  continue;
-                if(newAssignedVar.row+x < csp.n && newAssignedVar.row+x >= 0
-                        && newAssignedVar.col+y < csp.m && newAssignedVar.col+y >= 0) {
-
-                    int i = newAssignedVar.row+x;
-                    int j = newAssignedVar.col+y;
-
-                    //update domain
-                    if(csp.vars[i][j].value==VarState.notInit) {
-
-                        boolean alreadyAdded = false;
-                        for(Pair p : oldDomains) if(p.var.row==i && p.var.col==j) alreadyAdded = true;
-                        if(!alreadyAdded) oldDomains.add(new Pair(csp.vars[i][j], (TreeSet<VarState>) csp.vars[i][j].domain.clone()));
-
-                        if(newAssignedVar.value==VarState.pos) {
-                            //delete pos from i j's domain
-                            if(csp.vars[i][j].domain.contains(VarState.pos)) csp.vars[i][j].domain.remove(VarState.pos);
-                        }
-                        else if(newAssignedVar.value==VarState.neg) {
-                            if(csp.vars[i][j].domain.contains(VarState.neg)) csp.vars[i][j].domain.remove(VarState.neg);
-                        }
-                    }
-                }
-            }
-        }
-
-        //--------row consistency
-        // if initialized variables pos/neg already satisfies row pos/neg constraints,
-        // delete pos/neg from unassigned variables domain in that row
-
-        boolean rowPosSatisfied = false;
-        boolean rowNegSatisfied = false;
-        int row_pos_count = 0, row_neg_count = 0, row_not_init_count = 0;
-        for(int j = 0; j < csp.m; j++) {
-            if(csp.vars[newAssignedVar.row][j].value==VarState.pos) row_pos_count++;
-            if(csp.vars[newAssignedVar.row][j].value==VarState.neg) row_neg_count++;
-            if(csp.vars[newAssignedVar.row][j].value==VarState.notInit) row_not_init_count++;
-        }
-        if(row_pos_count == csp.row_pos[newAssignedVar.row]) {
-            rowPosSatisfied = true;
-            for(int j = 0; j < csp.m; j++) {
-                if(csp.vars[newAssignedVar.row][j].value==VarState.notInit) {
-                    if(csp.vars[newAssignedVar.row][j].domain.contains(VarState.pos)) {
-                        boolean alreadyAdded = false;
-                        for(Pair p : oldDomains) if(p.var.row==newAssignedVar.row && p.var.col==j) alreadyAdded = true;
-                        if(!alreadyAdded)
-                            oldDomains.add(new Pair(csp.vars[newAssignedVar.row][j], (TreeSet<VarState>) csp.vars[newAssignedVar.row][j].domain.clone()));
-                        csp.vars[newAssignedVar.row][j].domain.remove(VarState.pos);
-                    }
-                }
-            }
-        }
-        else if(row_pos_count > csp.row_pos[newAssignedVar.row]) {
-            // should not happen based on implementation of backtrack and FC
-            // but implementing for good practice
-            System.out.println("ER 77");
-            //System.exit(77);
-        }
-        else {
-            //row_pos_count < csp.row_pos[newAssignedVar.row]
-
-            // if csp.row_pos[newAssignedVar.row] - row_pos_count == #not initialized vars
-            //  then, all the not initialized var must be POSITIVE, so we need to delete NEGATIVE and EMPTY from their domain
-            if(csp.row_pos[newAssignedVar.row] - row_pos_count == row_not_init_count) {
-                for(int j = 0; j < csp.m; j++) {
-                    if(csp.vars[newAssignedVar.row][j].value==VarState.notInit) {
-                        if(csp.vars[newAssignedVar.row][j].domain.contains(VarState.neg)) {
-                            boolean alreadyAdded = false;
-                            for(Pair p : oldDomains) if(p.var.row==newAssignedVar.row && p.var.col==j) alreadyAdded = true;
-                            if(!alreadyAdded)
-                                oldDomains.add(new Pair(csp.vars[newAssignedVar.row][j], (TreeSet<VarState>) csp.vars[newAssignedVar.row][j].domain.clone()));
-                            csp.vars[newAssignedVar.row][j].domain.remove(VarState.neg);
-                        }
-                        if(csp.vars[newAssignedVar.row][j].domain.contains(VarState.empty)) {
-                            boolean alreadyAdded = false;
-                            for(Pair p : oldDomains) if(p.var.row==newAssignedVar.row && p.var.col==j) alreadyAdded = true;
-                            if(!alreadyAdded)
-                                oldDomains.add(new Pair(csp.vars[newAssignedVar.row][j], (TreeSet<VarState>) csp.vars[newAssignedVar.row][j].domain.clone()));
-                            csp.vars[newAssignedVar.row][j].domain.remove(VarState.empty);
-                        }
-
-                    }
-                }
-            }
-        }
-
-
-        if(row_neg_count == csp.row_neg[newAssignedVar.row]) {
-            rowNegSatisfied = true;
-            for(int j = 0; j < csp.m; j++) {
-                if(csp.vars[newAssignedVar.row][j].value==VarState.notInit) {
-                    if(csp.vars[newAssignedVar.row][j].domain.contains(VarState.neg)) {
-                        boolean alreadyAdded = false;
-                        for(Pair p : oldDomains) if(p.var.row==newAssignedVar.row && p.var.col==j) alreadyAdded = true;
-                        if(!alreadyAdded)
-                            oldDomains.add(new Pair(csp.vars[newAssignedVar.row][j], (TreeSet<VarState>) csp.vars[newAssignedVar.row][j].domain.clone()));
-                        csp.vars[newAssignedVar.row][j].domain.remove(VarState.neg);
-                    }
-                }
-            }
-        }
-        else if(row_neg_count > csp.row_neg[newAssignedVar.row]) {
-            // should not happen based on implementation of backtrack and FC
-            // but implementing for good practice
-            System.out.println("ER 77");
-            //System.exit(77);
-        }
-        else {
-            //row_neg_count < csp.row_neg[newAssignedVar.row]
-
-            // if csp.row_neg[newAssignedVar.row] - row_neg_count == #not initialized vars
-            //  then, all the not initialized var must be neg, so we need to delete POS and EMPTY from their domain
-            if(csp.row_neg[newAssignedVar.row] - row_neg_count == row_not_init_count) {
-                for(int j = 0; j < csp.m; j++) {
-                    if(csp.vars[newAssignedVar.row][j].value==VarState.notInit) {
-                        if(csp.vars[newAssignedVar.row][j].domain.contains(VarState.pos)) {
-                            boolean alreadyAdded = false;
-                            for(Pair p : oldDomains) if(p.var.row==newAssignedVar.row && p.var.col==j) alreadyAdded = true;
-                            if(!alreadyAdded)
-                                oldDomains.add(new Pair(csp.vars[newAssignedVar.row][j], (TreeSet<VarState>) csp.vars[newAssignedVar.row][j].domain.clone()));
-                            csp.vars[newAssignedVar.row][j].domain.remove(VarState.pos);
-                        }
-                        if(csp.vars[newAssignedVar.row][j].domain.contains(VarState.empty)) {
-                            boolean alreadyAdded = false;
-                            for(Pair p : oldDomains) if(p.var.row==newAssignedVar.row && p.var.col==j) alreadyAdded = true;
-                            if(!alreadyAdded)
-                                oldDomains.add(new Pair(csp.vars[newAssignedVar.row][j], (TreeSet<VarState>) csp.vars[newAssignedVar.row][j].domain.clone()));
-                            csp.vars[newAssignedVar.row][j].domain.remove(VarState.empty);
-                        }
-
-                    }
-                }
-            }
-        }
-
-        //--------col consistency
-        // same logic as row consistency, but in the column
-        boolean colPosSatisfied = false;
-        boolean colNegSatisfied = false;
-        int col_pos_count = 0, col_neg_count = 0, col_not_init_count = 0;
-        for(int i = 0; i < csp.n; i++) {
-            if(csp.vars[i][newAssignedVar.col].value==VarState.pos) col_pos_count++;
-            if(csp.vars[i][newAssignedVar.col].value==VarState.neg) col_neg_count++;
-            if(csp.vars[i][newAssignedVar.col].value==VarState.notInit) col_not_init_count++;
-        }
-        if(col_pos_count == csp.col_pos[newAssignedVar.col]) {
-            colPosSatisfied = true;
-            for(int i = 0; i < csp.n; i++) {
-                if(csp.vars[i][newAssignedVar.col].value==VarState.notInit) {
-                    if(csp.vars[i][newAssignedVar.col].domain.contains(VarState.pos)) {
-                        boolean alreadyAdded = false;
-                        for(Pair p : oldDomains) if(p.var.row==i && p.var.col==newAssignedVar.col) alreadyAdded = true;
-                        if(!alreadyAdded)
-                            oldDomains.add(new Pair(csp.vars[i][newAssignedVar.col], (TreeSet<VarState>) csp.vars[i][newAssignedVar.col].domain.clone()));
-
-                        csp.vars[i][newAssignedVar.col].domain.remove(VarState.pos);
-                    }
-
-                }
-            }
-        }
-        else if(col_pos_count > csp.col_pos[newAssignedVar.col]) {
-            // should not happen based on implementation of backtrack and FC
-            // but implementing for good practice
-            System.out.println("ER 77");
-            //System.exit(77);
-        }
-        else {
-            //col_pos_count < csp.col_pos[newAssignedVar.col]
-
-            // if csp.col_pos[newAssignedVar.col] - col_pos_count == #not initialized vars
-            //  then, all the not initialized var must be POSITIVE, so we need to delete NEGATIVE and EMPTY from their domain
-            if(csp.col_pos[newAssignedVar.col] - col_pos_count == col_not_init_count) {
-
-                for(int i = 0; i < csp.n; i++) {
-                    if(csp.vars[i][newAssignedVar.col].value==VarState.notInit) {
-
-                        if(csp.vars[i][newAssignedVar.col].domain.contains(VarState.neg)) {
-                            boolean alreadyAdded = false;
-                            for(Pair p : oldDomains) if(p.var.row==i && p.var.col==newAssignedVar.col) alreadyAdded = true;
-                            if(!alreadyAdded)
-                                oldDomains.add(new Pair(csp.vars[i][newAssignedVar.col], (TreeSet<VarState>) csp.vars[i][newAssignedVar.col].domain.clone()));
-
-                            csp.vars[i][newAssignedVar.col].domain.remove(VarState.neg);
-                        }
-
-                        if(csp.vars[i][newAssignedVar.col].domain.contains(VarState.empty)) {
-                            boolean alreadyAdded = false;
-                            for(Pair p : oldDomains) if(p.var.row==i && p.var.col==newAssignedVar.col) alreadyAdded = true;
-                            if(!alreadyAdded)
-                                oldDomains.add(new Pair(csp.vars[i][newAssignedVar.col], (TreeSet<VarState>) csp.vars[i][newAssignedVar.col].domain.clone()));
-
-                            csp.vars[i][newAssignedVar.col].domain.remove(VarState.empty);
-                        }
-                    }
-                }
-            }
-        }
-
-
-
-        if(col_neg_count == csp.col_neg[newAssignedVar.col]) {
-            colNegSatisfied = true;
-            for(int i = 0; i < csp.n; i++) {
-                if(csp.vars[i][newAssignedVar.col].value==VarState.notInit) {
-                    if(csp.vars[i][newAssignedVar.col].domain.contains(VarState.neg)) {
-                        boolean alreadyAdded = false;
-                        for(Pair p : oldDomains) if(p.var.row==i && p.var.col==newAssignedVar.col) alreadyAdded = true;
-                        if(!alreadyAdded)
-                            oldDomains.add(new Pair(csp.vars[i][newAssignedVar.col], (TreeSet<VarState>) csp.vars[i][newAssignedVar.col].domain.clone()));
-                        csp.vars[i][newAssignedVar.col].domain.remove(VarState.neg);
-                    }
-
-                }
-            }
-        }
-        else if(col_neg_count > csp.col_neg[newAssignedVar.col]) {
-            // should not happen based on implementation of backtrack and FC
-            // but implementing for good practice
-            System.out.println("ER 77");
-            //System.exit(77);
-        }
-        else {
-            //col_neg_count < csp.col_neg[newAssignedVar.col]
-
-            // if csp.col_neg[newAssignedVar.col] - col_neg_count == #not initialized vars
-            //  then, all the not initialized var must be NEG, so we need to delete POS and EMPTY from their domain
-            if(csp.col_neg[newAssignedVar.col] - col_neg_count == col_not_init_count) {
-
-                for(int i = 0; i < csp.n; i++) {
-                    if(csp.vars[i][newAssignedVar.col].value==VarState.notInit) {
-
-                        if(csp.vars[i][newAssignedVar.col].domain.contains(VarState.pos)) {
-                            boolean alreadyAdded = false;
-                            for(Pair p : oldDomains) if(p.var.row==i && p.var.col==newAssignedVar.col) alreadyAdded = true;
-                            if(!alreadyAdded)
-                                oldDomains.add(new Pair(csp.vars[i][newAssignedVar.col], (TreeSet<VarState>) csp.vars[i][newAssignedVar.col].domain.clone()));
-
-                            csp.vars[i][newAssignedVar.col].domain.remove(VarState.pos);
-                        }
-
-                        if(csp.vars[i][newAssignedVar.col].domain.contains(VarState.empty)) {
-                            boolean alreadyAdded = false;
-                            for(Pair p : oldDomains) if(p.var.row==i && p.var.col==newAssignedVar.col) alreadyAdded = true;
-                            if(!alreadyAdded)
-                                oldDomains.add(new Pair(csp.vars[i][newAssignedVar.col], (TreeSet<VarState>) csp.vars[i][newAssignedVar.col].domain.clone()));
-
-                            csp.vars[i][newAssignedVar.col].domain.remove(VarState.empty);
-                        }
-                    }
-                }
-            }
-        }
-
-        //csp.printDomains(newAssignedVar.row, newAssignedVar.col);
-
-        for(int i = 0; i < csp.n; i++) {
-            for(int j = 0; j < csp.m; j++) {
-                if(csp.vars[i][j].domain.isEmpty()) {
-                    //System.out.println("||||||||||||||||||||||||||||||||");
-                    //csp.printDomains(newAssignedVar.row, newAssignedVar.col);
-                }
-            }
-        }
-        return oldDomains;
-    }
-
-    public static ArrayList<Pair> ForwardChecking(Csp csp, Variable newAssignedVar) {
-        ArrayList<Pair> oldDomains = new ArrayList<>();
-
-        //--> update domain of every unassigned variable that is in constraint with "newAssignedVar"
-
-        //question, which variables does the newAssignedVar effect?
-        //      all vars in its up, down, left and right:
-        //          newAssignedVar.value != {up, down, left, right}
-
-        //      the pairVar value:
-        //          value of pairVar should be equal to newAssignedVar.value (reduces domain size to 1)
-
-        //*******************************************************
-        //      all vars in its column
-        //      all vars in its row
-        //*******************************************************
-
-        //------------------------------------pairVar value consistency:
-        Variable pairVar = csp.getPair(newAssignedVar);
-
-        oldDomains.add(new Pair(pairVar, (TreeSet<VarState>) pairVar.domain.clone()));
-
-        //if it is unassigned:
-        if(pairVar.value==VarState.notInit) {
-            ArrayList<VarState> listToRemove = new ArrayList<>();
-            for(VarState var : pairVar.domain) {
-                //assign
-                pairVar.value = var;
-
-                //check pairVar con
-                //// only check pair consistency, because we are checking binary constraint between 2 vars
-                if(!pairVar.isPairConsistent(csp)) {
-                    //pairVar.domain.remove(var);
-                    listToRemove.add(var);
-                }
-                //undo assignment
-                pairVar.value = VarState.notInit;
-            }
-            pairVar.domain.removeAll(listToRemove);
-        }
-
-        //------------------------------------pole consistency (up, down, right and left)
-        for(int x = -1; x <= 1; x++) {
-            for(int y = -1; y <= 1; y++) {
-                if((x==0 && y==0) || x*y!=0)  continue;
-                if(newAssignedVar.row+x < csp.n && newAssignedVar.row+x >= 0
-                        && newAssignedVar.col+y < csp.m && newAssignedVar.col+y >= 0) {
-
-                    int i = newAssignedVar.row+x;
-                    int j = newAssignedVar.col+y;
-
-                    //update domain
-                    if(csp.vars[i][j].value==VarState.notInit) {
-
-                        boolean alreadyAdded = false;
-                        for(Pair p : oldDomains) if(p.var.row==i && p.var.col==j) alreadyAdded = true;
-                        if(!alreadyAdded) oldDomains.add(new Pair(csp.vars[i][j], (TreeSet<VarState>) csp.vars[i][j].domain.clone()));
-
-                        if(newAssignedVar.value==VarState.pos) {
-                            //delete pos from i j's domain
-                            if(csp.vars[i][j].domain.contains(VarState.pos)) csp.vars[i][j].domain.remove(VarState.pos);
-                        }
-                        else if(newAssignedVar.value==VarState.neg) {
-                            if(csp.vars[i][j].domain.contains(VarState.neg)) csp.vars[i][j].domain.remove(VarState.neg);
-                        }
-                    }
-                }
-            }
-        }
-
-        //--------row consistency
-        // if initialized variables pos/neg already satisfies row pos/neg constraints,
-        // delete pos/neg from unassigned variables domain in that row
-        ////------------------------------------------------------------------ YOU CAN MAKE THIS CONSISTENCY CHECK STRONGER
-        ////    for example, somehow check and delete EMPTY from
-
-        boolean rowPosSatisfied = false;
-        boolean rowNegSatisfied = false;
-        int row_pos_count = 0, row_neg_count = 0;
-        for(int j = 0; j < csp.m; j++) {
-            if(csp.vars[newAssignedVar.row][j].value==VarState.pos) row_pos_count++;
-            if(csp.vars[newAssignedVar.row][j].value==VarState.neg) row_neg_count++;
-        }
-        if(row_pos_count == csp.row_pos[newAssignedVar.row]) {
-            rowPosSatisfied = true;
-            for(int j = 0; j < csp.m; j++) {
-                if(csp.vars[newAssignedVar.row][j].value==VarState.notInit) {
-                    if(csp.vars[newAssignedVar.row][j].domain.contains(VarState.pos)) {
-                        boolean alreadyAdded = false;
-                        for(Pair p : oldDomains) if(p.var.row==newAssignedVar.row && p.var.col==j) alreadyAdded = true;
-                        if(!alreadyAdded)
-                            oldDomains.add(new Pair(csp.vars[newAssignedVar.row][j], (TreeSet<VarState>) csp.vars[newAssignedVar.row][j].domain.clone()));
-                        csp.vars[newAssignedVar.row][j].domain.remove(VarState.pos);
-                    }
-                }
-            }
-        }
-        if(row_neg_count == csp.row_neg[newAssignedVar.row]) {
-            rowNegSatisfied = true;
-            for(int j = 0; j < csp.m; j++) {
-                if(csp.vars[newAssignedVar.row][j].value==VarState.notInit) {
-                    if(csp.vars[newAssignedVar.row][j].domain.contains(VarState.neg)) {
-                        boolean alreadyAdded = false;
-                        for(Pair p : oldDomains) if(p.var.row==newAssignedVar.row && p.var.col==j) alreadyAdded = true;
-                        if(!alreadyAdded)
-                            oldDomains.add(new Pair(csp.vars[newAssignedVar.row][j], (TreeSet<VarState>) csp.vars[newAssignedVar.row][j].domain.clone()));
-                        csp.vars[newAssignedVar.row][j].domain.remove(VarState.neg);
-                    }
-                }
-            }
-        }
-
-        //--------col consistency
-        // same logic as row consistency, but in the column
-        boolean colPosSatisfied = false;
-        boolean colNegSatisfied = false;
-        int col_pos_count = 0, col_neg_count = 0;
-        for(int i = 0; i < csp.n; i++) {
-            if(csp.vars[i][newAssignedVar.col].value==VarState.pos) col_pos_count++;
-            if(csp.vars[i][newAssignedVar.col].value==VarState.neg) col_neg_count++;
-        }
-        if(col_pos_count == csp.col_pos[newAssignedVar.col]) {
-            colPosSatisfied = true;
-            for(int i = 0; i < csp.n; i++) {
-                if(csp.vars[i][newAssignedVar.col].value==VarState.notInit) {
-                    if(csp.vars[i][newAssignedVar.col].domain.contains(VarState.pos)) {
-                        boolean alreadyAdded = false;
-                        for(Pair p : oldDomains) if(p.var.row==i && p.var.col==newAssignedVar.col) alreadyAdded = true;
-                        if(!alreadyAdded)
-                            oldDomains.add(new Pair(csp.vars[i][newAssignedVar.col], (TreeSet<VarState>) csp.vars[i][newAssignedVar.col].domain.clone()));
-
-                        csp.vars[i][newAssignedVar.col].domain.remove(VarState.pos);
-                    }
-
-                }
-            }
-        }
-        if(col_neg_count == csp.col_neg[newAssignedVar.col]) {
-            colNegSatisfied = true;
-            for(int i = 0; i < csp.n; i++) {
-                if(csp.vars[i][newAssignedVar.col].value==VarState.notInit) {
-                    if(csp.vars[i][newAssignedVar.col].domain.contains(VarState.neg)) {
-                        boolean alreadyAdded = false;
-                        for(Pair p : oldDomains) if(p.var.row==i && p.var.col==newAssignedVar.col) alreadyAdded = true;
-                        if(!alreadyAdded)
-                            oldDomains.add(new Pair(csp.vars[i][newAssignedVar.col], (TreeSet<VarState>) csp.vars[i][newAssignedVar.col].domain.clone()));
-                        csp.vars[i][newAssignedVar.col].domain.remove(VarState.neg);
-                    }
-
-                }
-            }
-        }
-
-        //csp.printDomains(newAssignedVar.row, newAssignedVar.col);
-
-        for(int i = 0; i < csp.n; i++) {
-            for(int j = 0; j < csp.m; j++) {
-                if(csp.vars[i][j].domain.isEmpty()) {
-                    //System.out.println("||||||||||||||||||||||||||||||||");
-                    //csp.printDomains(newAssignedVar.row, newAssignedVar.col);
-                }
-            }
-        }
-        return oldDomains;
-    }
-    public static ArrayList<Pair> BinaryForwardChecking(Csp csp, Variable newAssignedVar) {
-        ArrayList<Pair> oldDomains = new ArrayList<>();
-
-        //--> update domain of every unassigned variable that is in constraint with "newAssignedVar"
-
-        //question, which variables does the newAssignedVar effect?
-        //      all vars in its up, down, left and right:
-        //          newAssignedVar.value != {up, down, left, right}
-
-        //      the pairVar value:
-        //          value of pairVar should be equal to newAssignedVar.value (reduces domain size to 1)
-
-        //*******************************************************
-        //      all vars in its column
-        //      all vars in its row
-        //*******************************************************
-
-        //------------------------------------pairVar value consistency:
-        Variable pairVar = csp.getPair(newAssignedVar);
-
-        oldDomains.add(new Pair(pairVar, (TreeSet<VarState>) pairVar.domain.clone()));
-
-        //if it is unassigned:
-        if(pairVar.value==VarState.notInit) {
-            ArrayList<VarState> listToRemove = new ArrayList<>();
-            for(VarState var : pairVar.domain) {
-                //assign
-                pairVar.value = var;
-
-                //check pairVar con
-                if(!pairVar.isPairConsistent(csp)) {
-                    //pairVar.domain.remove(var);
-                    listToRemove.add(var);
-                }
-                //undo assignment
-                pairVar.value = VarState.notInit;
-            }
-            pairVar.domain.removeAll(listToRemove);
-        }
-
-        //------------------------------------pole consistency (up, down, right and left)
-        for(int x = -1; x <= 1; x++) {
-            for(int y = -1; y <= 1; y++) {
-                if((x==0 && y==0) || x*y!=0)  continue;
-                if(newAssignedVar.row+x < csp.n && newAssignedVar.row+x >= 0
-                        && newAssignedVar.col+y < csp.m && newAssignedVar.col+y >= 0) {
-
-                    int i = newAssignedVar.row+x;
-                    int j = newAssignedVar.col+y;
-
-                    //update domain
-                    if(csp.vars[i][j].value==VarState.notInit) {
-
-                        boolean alreadyAdded = false;
-                        for(Pair p : oldDomains) if(p.var.row==i && p.var.col==j) alreadyAdded = true;
-                        if(!alreadyAdded) oldDomains.add(new Pair(csp.vars[i][j], (TreeSet<VarState>) csp.vars[i][j].domain.clone()));
-
-                        if(newAssignedVar.value==VarState.pos) {
-                            //delete pos from i j's domain
-                            if(csp.vars[i][j].domain.contains(VarState.pos)) csp.vars[i][j].domain.remove(VarState.pos);
-                        }
-                        else if(newAssignedVar.value==VarState.neg) {
-                            if(csp.vars[i][j].domain.contains(VarState.neg)) csp.vars[i][j].domain.remove(VarState.neg);
-                        }
-                    }
-                }
-            }
-        }
-
-        //csp.printDomains(newAssignedVar.row, newAssignedVar.col);
-
-
-        for(int i = 0; i < csp.n; i++) {
-            for(int j = 0; j < csp.m; j++) {
-                if(csp.vars[i][j].domain.isEmpty()) {
-                    //System.out.println("||||||||||||||||||||||||||||||||");
-                    //csp.printDomains(newAssignedVar.row, newAssignedVar.col);
-                }
-            }
-        }
-        return oldDomains;
-    }
 
     public static void backtrack_arc_consistency(Csp csp) {
         boolean temp = recursive_arc(csp);
@@ -723,7 +134,7 @@ public class Main {
             //      forward checking returns the changes in domains, so we can undo them
             //ArrayList<Pair> oldDomainsFromFC = BinaryForwardChecking(csp, varToAssign);
             //ArrayList<Pair> oldDomainsFromFC = ForwardChecking(csp, varToAssign);
-            ArrayList<Pair> oldDomainsFromFC = abnormalForwardChecking(csp, varToAssign);
+            ArrayList<Pair> oldDomainsFromFC = Csp.abnormalForwardChecking(csp, varToAssign);
 
             //check if consistent
             // only expand if its consistent
@@ -794,11 +205,11 @@ public class Main {
                     for(Variable y : neighbours) {
                         /// if y is already assigned, then we do not care
                         //if(y.value == VarState.notInit) {
-                            CellPair newArc = new CellPair(csp.vars[i][j], y);
-                            if(!arcs.contains(newArc)) {
-                                arcs.add(newArc);
-                                //System.out.println("arc <("+i+", "+j+"), ("+y.row+", "+y.col+")> added.");
-                            }
+                        CellPair newArc = new CellPair(csp.vars[i][j], y);
+                        if(!arcs.contains(newArc)) {
+                            arcs.add(newArc);
+                            //System.out.println("arc <("+i+", "+j+"), ("+y.row+", "+y.col+")> added.");
+                        }
                         //}
                     }
                 }
@@ -965,7 +376,7 @@ public class Main {
             int domainSum = 0;
             csp.vars[assignedVar.row][assignedVar.col].value = val;
 
-            ArrayList<Pair> oldDomains = ForwardChecking(csp, assignedVar);
+            ArrayList<Pair> oldDomains = Csp.abnormalForwardChecking(csp, assignedVar);
             for(int i = 0; i < csp.n; i++) {
                 for(int j = 0; j < csp.m; j++) {
                     if(csp.vars[i][j].value == VarState.notInit) {
@@ -998,7 +409,7 @@ public class Main {
                 (flexMap.get(VarState.neg).intValue() != (flexMap.get(VarState.empty).intValue()))
                 &&
                 (flexMap.get(VarState.empty).intValue() != (flexMap.get(VarState.pos)).intValue())
-                ){
+        ){
             //System.out.println(flexMap);
             //System.out.println(sortedDomain);
 
@@ -1041,9 +452,9 @@ public class Main {
 
             // Forward Checking for the new assignment (UPDATE DOMAIN FOR UNASSIGNED VARIABLES)
             //      forward checking returns the changes in domains, so we can undo them
-            //ArrayList<Pair> oldDomains = ForwardChecking(csp, varToAssign);
-            //ArrayList<Pair> oldDomains = BinaryForwardChecking(csp, varToAssign);
-            ArrayList<Pair> oldDomains = abnormalForwardChecking(csp, varToAssign);
+            //ArrayList<Pair> oldDomains = Csp.ForwardChecking(csp, varToAssign);
+            //ArrayList<Pair> oldDomains = Csp.BinaryForwardChecking(csp, varToAssign);
+            ArrayList<Pair> oldDomains = Csp.abnormalForwardChecking(csp, varToAssign);
 
             //check if consistent
             // only expand if its consistent
@@ -1108,9 +519,7 @@ public class Main {
             csp.printBoard( -1, -1);
             return true;
         }
-
-        //ADD -> select a var based on MRV
-        //right now selection is based on index
+        //selection is based on index
         Variable varToAssign = null;
         for(int i = 0; i < csp.n; i++) {
             boolean stop = false;
@@ -1123,40 +532,20 @@ public class Main {
             }
             if(stop) break;
         }
-
-        //ADD -> sort(Choose value) based on LCS
-
-        //right now its index based
         for(VarState val : varToAssign.domain) {
             //Assign
             csp.vars[varToAssign.row][varToAssign.col].value = val;
 
-            // Forward Checking for the new assignment (UPDATE DOMAIN FOR UNASSIGNED VARIABLES)
-            //      forward checking returns the changes in domains, so we can undo them
-            //ArrayList<Pair> oldDomains = BinaryForwardChecking(csp, varToAssign);
-            //ArrayList<Pair> oldDomains = ForwardChecking(csp, varToAssign);
-            ArrayList<Pair> oldDomains = abnormalForwardChecking(csp, varToAssign);
+            //ArrayList<Pair> oldDomains = Csp.BinaryForwardChecking(csp, varToAssign);
+            //ArrayList<Pair> oldDomains = Csp.ForwardChecking(csp, varToAssign);
+            ArrayList<Pair> oldDomains = Csp.abnormalForwardChecking(csp, varToAssign);
 
-            //check if consistent
-            // only expand if its consistent
             if(csp.vars[varToAssign.row][varToAssign.col].isConsistent(csp)) {
-                //csp.printBoard(varToAssign.row, varToAssign.col);
-                //System.out.println("up consistent");
-
-                // if assignment is consistent, and forward checking detected an
-                // empty domain for an unassigned variable, we need to skip this value in for loop
-                // (we cant return false, because returning false means there is no ANY value for this
-                // variable that can be consistent. but we did forward checking after assigning a value
-                // to this variable, it only means that this VALUE of this variable is inconsistent, so
-                // we have to skip this value, not this variable
-                // for skipping this value, just do not expand the search any longer (dont call recursive)
                 boolean fc_detected_failure = false;
                 for(int i = 0; i < csp.n; i++) {
                     for(int j = 0; j < csp.m; j++) {
                         if(csp.vars[i][j].value == VarState.notInit) {
                             if(csp.vars[i][j].domain.isEmpty()) {
-                                //System.out.println("STOPPED BY FC ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
-                                //csp.printDomains(varToAssign.row, varToAssign.col);
                                 fc_detected_failure = true;
                                 bfc++;
                                 fc++;
@@ -1164,29 +553,18 @@ public class Main {
                         }
                     }
                 }
-
                 if (!fc_detected_failure) {
                     boolean result = recursive_FC(csp);
                     if(result) return true;
                 }
             }
-            else {
-                //csp.printBoard(varToAssign.row, varToAssign.col);
-                //System.out.println("up in-consistent");
-            }
-
             //UNDO FORWARD CHECKING
             for(Pair p : oldDomains) {
                 csp.vars[p.var.row][p.var.col].domain = p.domain;
             }
-
             //remove from assignment
             csp.vars[varToAssign.row][varToAssign.col].value = VarState.notInit;
-            //-------- if you assign the pair as well, you have to undo pair assignment too
-            //csp.vars[csp.getPair(varToAssign).row][csp.getPair(varToAssign).col].value = VarState.notInit;
         }
-
-
         return false;
     }
 
@@ -1196,16 +574,12 @@ public class Main {
     }
     public static boolean recursive(Csp csp) {
         recursion_count_simple_backtracking++;
-        //csp.printBoard(-1, -1);
         if(csp.isComplete()) {
             System.out.println("assignment is complete");
             csp.printBoard( -1, -1);
             return true;
         }
-        
-        //ADD -> select a var based on MRV
-
-        //right now selection is based on index
+        //selection is based on index
         Variable varToAssign = null;
         for(int i = 0; i < csp.n; i++) {
             boolean stop = false;
@@ -1218,32 +592,16 @@ public class Main {
             }
             if(stop) break;
         }
-
-        //ADD -> sort(Choose value) based on LCS
-
         for(VarState val : varToAssign.domain) {
             //assign
             csp.vars[varToAssign.row][varToAssign.col].value = val;
-
-            //check if consistent
-            // only expand if its consistent
             if(csp.vars[varToAssign.row][varToAssign.col].isConsistent(csp)) {
-                //csp.printBoard(varToAssign.row, varToAssign.col);
-                //System.out.println("up consistent");
                 boolean result = recursive(csp);
                 if(result) return true;
             }
-            else {
-                //csp.printBoard(varToAssign.row, varToAssign.col);
-                //System.out.println("up in-consistent");
-            }
-
             //remove from assignment
             csp.vars[varToAssign.row][varToAssign.col].value = VarState.notInit;
-            //-------- if you assign the pair as well, you have to undo pair assignment too
-            //csp.vars[csp.getPair(varToAssign).row][csp.getPair(varToAssign).col].value = VarState.notInit;
         }
-
         return false;
     }
 }
