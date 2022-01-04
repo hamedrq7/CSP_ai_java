@@ -17,7 +17,7 @@ public class Main {
         int[] row_pos = new int[0], row_neg = new int[0];
         int[][] board = new int[0][];
 
-        String testFileName = "tests/test2.txt";
+        String testFileName = "tests\\test2.txt";
         try {
             File myObj = new File(testFileName);
             //System.out.println(myObj.exists());
@@ -58,26 +58,26 @@ public class Main {
         long startTime1 = System.nanoTime();
         backtrack_solve(csp1);
         long stopTime1 = System.nanoTime();
-        System.out.println("dry backtrack: " + (stopTime1 - startTime1)/1000000);
+        System.out.println("dry backtrack, TIME: " + (stopTime1 - startTime1)/1000000);
 
         long startTime2 = System.nanoTime();
         backtrack_FC(csp2);
         long stopTime2 = System.nanoTime();
-        System.out.println("backTrack, only forward checking: " + (stopTime2 - startTime2)/1000000);
+        System.out.println("backTrack, only forward checking, TIME: " + (stopTime2 - startTime2)/1000000);
 
         long startTime3 = System.nanoTime();
         backtrack_FC_MRV_LCV(csp3);
         long stopTime3 = System.nanoTime();
-        System.out.println("forward checking+MRV+LCV: " + (stopTime3 - startTime3)/1000000);
+        System.out.println("forward checking+MRV+LCV, TIME: " + (stopTime3 - startTime3)/1000000);
 
         long startTime4 = System.nanoTime();
         backtrack_arc_consistency(csp4);
         long stopTime4 = System.nanoTime();
-        System.out.println("with arc consistency: " + (stopTime4 - startTime4)/1000000);
+        System.out.println("with arc consistency, TIME: " + (stopTime4 - startTime4)/1000000);
 
-        System.out.println("#recursions with: " + recursion_count_simple_backtracking);
+        System.out.println("#recursions simple backtrack: " + recursion_count_simple_backtracking);
         System.out.println("#recursions with FC: " + recursion_count_fc);
-        System.out.println("#recursions in orward checking+MRV+LCV: " + recursion_count_fc_mrv_lcv);
+        System.out.println("#recursions in forward checking+MRV+LCV: " + recursion_count_fc_mrv_lcv);
         System.out.println("#recursions with arc con: " + recursion_count_arc);
 
         System.out.println("fc: "+ fc);
@@ -474,8 +474,6 @@ public class Main {
                     for(int j = 0; j < csp.m; j++) {
                         if(csp.vars[i][j].value == VarState.notInit) {
                             if(csp.vars[i][j].domain.isEmpty()) {
-                                //System.out.println("STOPPED BY FC ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
-                                //csp.printDomains(varToAssign.row, varToAssign.col);
                                 fc_detected_failure = true;
                                 fc++;
                             }
@@ -500,8 +498,6 @@ public class Main {
 
             //remove from assignment
             csp.vars[varToAssign.row][varToAssign.col].value = VarState.notInit;
-            //-------- if you assign the pair as well, you have to undo pair assignment too
-            //csp.vars[csp.getPair(varToAssign).row][csp.getPair(varToAssign).col].value = VarState.notInit;
         }
 
 

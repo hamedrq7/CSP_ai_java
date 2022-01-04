@@ -158,11 +158,6 @@ public class Csp {
             }
         }
     }
-    public static ArrayList<Pair> rowColForwardChecking(Csp csp, Variable newAssignedVar) {
-        ArrayList<Pair> oldDomains = new ArrayList<>();
-
-        return oldDomains;
-    }
     public static ArrayList<Pair> abnormalForwardChecking(Csp csp, Variable newAssignedVar) {
         ArrayList<Pair> oldDomains = new ArrayList<>();
 
